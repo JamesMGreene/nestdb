@@ -8,10 +8,10 @@
 
 var localforage = require('localforage')
 
-// Configure localforage to display NeDB name for now. Would be a good idea to let user use his own app name
+// Configure localforage to display NestDB name for now. Would be a good idea to let user use his own app name
 localforage.config({
-  name: 'NeDB'
-, storeName: 'nedbdata'
+  name: 'NestDB'
+, storeName: 'nestdbdata'
 });
 
 

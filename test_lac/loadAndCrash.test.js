@@ -116,8 +116,8 @@ fs.writeFile = function(path, data, options, callback_) {
 
 
 // End of fs modification
-var Nedb = require('../lib/datastore.js')
-  , db = new Nedb({ filename: 'workspace/lac.db' })
+var NestDB = require('../lib/datastore.js')
+  , db = new NestDB({ filename: 'workspace/lac.db' })
   ;
 
 db.loadDatabase();

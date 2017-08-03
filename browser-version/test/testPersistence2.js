@@ -16,7 +16,7 @@ function testsFailed () {
 
 var filename = 'test';
 
-var db = new Nedb({ filename: filename, autoload: true });
+var db = new NestDB({ filename: filename, autoload: true });
 db.find({}, function (err, docs) {
   if (docs.length !== 1) {
     console.log(docs);

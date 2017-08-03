@@ -1,7 +1,7 @@
 console.log('BEGINNING');
 
 var N = 50000
-  , db = new Nedb({ filename: 'loadTest', autoload: true })
+  , db = new NestDB({ filename: 'loadTest', autoload: true })
   , t, i
   , sample = JSON.stringify({ data: Math.random(), _id: Math.random() });
   ;

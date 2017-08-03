@@ -729,7 +729,7 @@ describe('Model', function () {
         assert.deepEqual(modified, { arr: [{ b: 2 }] });
       });
 
-      it('Can use any kind of nedb query with $pull', function () {
+      it('Can use any kind of NestDB query with $pull', function () {
         var obj = { arr: [4, 7, 12, 2], other: 'yup' }
           , modified
         ;
@@ -1023,12 +1023,12 @@ describe('Model', function () {
         assert.deepEqual(dv, ['Earth', 'Mars', 'Pluton']);
         
         // Nested array of subdocuments
-        dv = model.getDotValue({ nedb: true, data: { planets: [ { name: 'Earth', number: 3 }, { name: 'Mars', number: 2 }, { name: 'Pluton', number: 9 } ] } }, 'data.planets.number');
+        dv = model.getDotValue({ nestdb: true, data: { planets: [ { name: 'Earth', number: 3 }, { name: 'Mars', number: 2 }, { name: 'Pluton', number: 9 } ] } }, 'data.planets.number');
         assert.deepEqual(dv, [3, 2, 9]);
         
         // Nested array in a subdocument of an array (yay, inception!)
         // TODO: make sure MongoDB doesn't flatten the array (it wouldn't make sense)
-        dv = model.getDotValue({ nedb: true, data: { planets: [ { name: 'Earth', numbers: [ 1, 3 ] }, { name: 'Mars', numbers: [ 7 ] }, { name: 'Pluton', numbers: [ 9, 5, 1 ] } ] } }, 'data.planets.numbers');
+        dv = model.getDotValue({ nestdb: true, data: { planets: [ { name: 'Earth', numbers: [ 1, 3 ] }, { name: 'Mars', numbers: [ 7 ] }, { name: 'Pluton', numbers: [ 9, 5, 1 ] } ] } }, 'data.planets.numbers');
         assert.deepEqual(dv, [[ 1, 3 ], [ 7 ], [ 9, 5, 1 ]]);
       });
       
@@ -1044,11 +1044,11 @@ describe('Model', function () {
         assert.isUndefined(dv);
 
         // Index in nested array
-        dv = model.getDotValue({ nedb: true, data: { planets: [ { name: 'Earth', number: 3 }, { name: 'Mars', number: 2 }, { name: 'Pluton', number: 9 } ] } }, 'data.planets.2');
+        dv = model.getDotValue({ nestdb: true, data: { planets: [ { name: 'Earth', number: 3 }, { name: 'Mars', number: 2 }, { name: 'Pluton', number: 9 } ] } }, 'data.planets.2');
         assert.deepEqual(dv, { name: 'Pluton', number: 9 });
         
         // Dot notation with index in the middle
-        dv = model.getDotValue({ nedb: true, data: { planets: [ { name: 'Earth', number: 3 }, { name: 'Mars', number: 2 }, { name: 'Pluton', number: 9 } ] } }, 'data.planets.0.name');
+        dv = model.getDotValue({ nestdb: true, data: { planets: [ { name: 'Earth', number: 3 }, { name: 'Mars', number: 2 }, { name: 'Pluton', number: 9 } ] } }, 'data.planets.0.name');
         dv.should.equal('Earth');
       });
 
@@ -1163,11 +1163,11 @@ describe('Model', function () {
       });
 
       it('Can compare strings, with or without dot notation', function () {
-        model.match({ a: "nedb" }, { a: { $lt: "nedc" } }).should.equal(true);
-        model.match({ a: "nedb" }, { a: { $lt: "neda" } }).should.equal(false);
+        model.match({ a: "nestdb" }, { a: { $lt: "nestdc" } }).should.equal(true);
+        model.match({ a: "nestdb" }, { a: { $lt: "nestda" } }).should.equal(false);
 
-        model.match({ a: { b: "nedb" } }, { "a.b": { $lt: "nedc" } }).should.equal(true);
-        model.match({ a: { b: "nedb" } }, { "a.b": { $lt: "neda" } }).should.equal(false);
+        model.match({ a: { b: "nestdb" } }, { "a.b": { $lt: "nestdc" } }).should.equal(true);
+        model.match({ a: { b: "nestdb" } }, { "a.b": { $lt: "nestda" } }).should.equal(false);
       });
 
       it('If field is an array field, a match means a match on at least one element', function () {
@@ -1412,7 +1412,7 @@ describe('Model', function () {
         model.match({ tags: ['node', 'js', 'db'] }, { tags: 'js', tags: 'node' }).should.equal(true);
 
         // Mixed matching with array and non array
-        model.match({ tags: ['node', 'js', 'db'], nedb: true }, { tags: 'js', nedb: true }).should.equal(true);
+        model.match({ tags: ['node', 'js', 'db'], nestdb: true }, { tags: 'js', nestdb: true }).should.equal(true);
 
         // Nested matching
         model.match({ number: 5, data: { tags: ['node', 'js', 'db'] } }, { "data.tags": 'js' }).should.equal(true);

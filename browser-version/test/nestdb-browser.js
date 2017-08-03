@@ -1,6 +1,6 @@
 /**
- * Testing the browser version of NeDB
- * The goal of these tests is not to be exhaustive, we have the server-side NeDB tests for that
+ * Testing the browser version of NestDB
+ * The goal of these tests is not to be exhaustive, we have the server-side NestDB tests for that
  * This is more of a sanity check which executes most of the code at least once and checks
  * it behaves as the server version does
  */
@@ -18,14 +18,14 @@ function findById (docs, id) {
 describe('Basic CRUD functionality', function () {
 
   it('Able to create a database object in the browser', function () {
-    var db = new Nedb();
+    var db = new NestDB();
 
     assert.equal(db.inMemoryOnly, true);
     assert.equal(db.persistence.inMemoryOnly, true);
   });
 
   it('Insertion and querying', function (done) {
-    var db = new Nedb();
+    var db = new NestDB();
 
     db.insert({ a: 4 }, function (err, newDoc1) {
       assert.isNull(err);
@@ -57,7 +57,7 @@ describe('Basic CRUD functionality', function () {
   });
 
   it('Querying with regular expressions', function (done) {
-    var db = new Nedb();
+    var db = new NestDB();
 
     db.insert({ planet: 'Earth' }, function (err, newDoc1) {
       assert.isNull(err);
@@ -95,7 +95,7 @@ describe('Basic CRUD functionality', function () {
   });
 
   it('Updating documents', function (done) {
-    var db = new Nedb();
+    var db = new NestDB();
 
     db.insert({ planet: 'Eaaaaarth' }, function (err, newDoc1) {
       db.insert({ planet: 'Maaaaars' }, function (err, newDoc2) {
@@ -155,7 +155,7 @@ describe('Basic CRUD functionality', function () {
   });
 
   it('Updating documents: special modifiers', function (done) {
-    var db = new Nedb();
+    var db = new NestDB();
 
     db.insert({ planet: 'Earth' }, function (err, newDoc1) {
       // Pushing to an array
@@ -182,7 +182,7 @@ describe('Basic CRUD functionality', function () {
   });
 
   it('Upserts', function (done) {
-    var db = new Nedb();
+    var db = new NestDB();
 
     db.update({ a: 4 }, { $inc: { b: 1 } }, { upsert: true }, function (err, nr, upsert) {
       assert.isNull(err);
@@ -202,7 +202,7 @@ describe('Basic CRUD functionality', function () {
   });
 
   it('Removing documents', function (done) {
-    var db = new Nedb();
+    var db = new NestDB();
 
     db.insert({ a: 2 });
     db.insert({ a: 5 });
@@ -249,7 +249,7 @@ describe('Basic CRUD functionality', function () {
 describe('Indexing', function () {
 
   it('getCandidates works as expected', function (done) {
-    var db = new Nedb();
+    var db = new NestDB();
 
     db.insert({ a: 4 }, function () {
       db.insert({ a: 6 }, function () {
@@ -276,7 +276,7 @@ describe('Indexing', function () {
   });
 
   it('Can use indexes to enforce a unique constraint', function (done) {
-    var db = new Nedb();
+    var db = new NestDB();
 
     db.ensureIndex({ fieldName: 'u', unique: true });
 

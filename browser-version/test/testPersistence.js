@@ -7,7 +7,7 @@ function testsFailed () {
 
 var filename = 'test';
 
-var db = new Nedb({ filename: filename, autoload: true });
+var db = new NestDB({ filename: filename, autoload: true });
 db.remove({}, { multi: true }, function () {
   db.insert({ hello: 'world' }, function (err) {
     if (err) {

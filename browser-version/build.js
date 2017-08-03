@@ -1,5 +1,5 @@
 /**
- * Build the browser version of nedb
+ * Build the browser version of NestDB
  */
 
 var fs = require('fs')
@@ -70,9 +70,9 @@ child_process.exec('npm install', { cwd: __dirname }, function (err, stdout, std
       , srcPath = path.join(__dirname, 'src/lib/datastore.js');
 
     b.add(srcPath);
-    b.bundle({ standalone: 'Nedb' }, function (err, out) {
+    b.bundle({ standalone: 'NestDB' }, function (err, out) {
       if (err) { return cb(err); }
-      fs.writeFile(path.join(__dirname, 'out/nedb.js'), out, 'utf8', function (err) {
+      fs.writeFile(path.join(__dirname, 'out/nestdb.js'), out, 'utf8', function (err) {
         if (err) {
           return cb(err);
         } else {
@@ -85,7 +85,7 @@ child_process.exec('npm install', { cwd: __dirname }, function (err, stdout, std
       console.log("Creating the minified version");
 
       var compressedCode = uglify.minify(out, { fromString: true });
-      fs.writeFile(path.join(__dirname, 'out/nedb.min.js'), compressedCode.code, 'utf8', cb);
+      fs.writeFile(path.join(__dirname, 'out/nestdb.min.js'), compressedCode.code, 'utf8', cb);
   }
   ], function (err) {
     if (err) {

@@ -381,14 +381,14 @@ describe('Database', function () {
 
     /**
      * Complicated behavior here. Basically we need to test that when a user function throws an exception, it is not caught
-     * in NeDB and the callback called again, transforming a user error into a NeDB error.
+     * in NestDB and the callback called again, transforming a user error into a NestDB error.
      *
      * So we need a way to check that the callback is called only once and the exception thrown is indeed the client exception
      * Mocha's exception handling mechanism interferes with this since it already registers a listener on uncaughtException
      * which we need to use since findOne is not called in the same turn of the event loop (so no try/catch)
      * So we remove all current listeners, put our own which when called will register the former listeners (incl. Mocha's) again.
      *
-     * Note: maybe using an in-memory only NeDB would give us an easier solution
+     * Note: maybe using an in-memory only NestDB would give us an easier solution
      */
     it('If the callback throws an uncaught exception, do not catch it inside findOne, this is userspace concern', function (done) {
       var tryCount = 0
@@ -716,18 +716,18 @@ describe('Database', function () {
         , date2 = new Date(9999)
         ;
 
-      d.insert({ now: date1, sth: { name: 'nedb' } }, function () {
+      d.insert({ now: date1, sth: { name: 'nestdb' } }, function () {
         d.findOne({ now: date1 }, function (err, doc) {
           assert.isNull(err);
-          doc.sth.name.should.equal('nedb');
+          doc.sth.name.should.equal('nestdb');
 
           d.findOne({ now: date2 }, function (err, doc) {
             assert.isNull(err);
             assert.isNull(doc);
 
-            d.findOne({ sth: { name: 'nedb' } }, function (err, doc) {
+            d.findOne({ sth: { name: 'nestdb' } }, function (err, doc) {
               assert.isNull(err);
-              doc.sth.name.should.equal('nedb');
+              doc.sth.name.should.equal('nestdb');
 
               d.findOne({ sth: { name: 'other' } }, function (err, doc) {
                 assert.isNull(err);

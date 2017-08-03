@@ -1,6 +1,6 @@
 {
-"name": "nedb",
-"description": "The Javascript Database for Node, nwjs, Electron and the browser",
+"name": "nestdb",
+"description": "The Javascript Database for Node.js, nwjs, Electron and the browser",
 "ignore": ["benchmarks", "lib", "test", "test_lac"],
-"main": ["browser-version/nedb.js", "browser-version/nedb.min.js"]
+"main": ["browser-version/nestdb.js", "browser-version/nestdb.min.js"]
 }

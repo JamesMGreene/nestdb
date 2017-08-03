@@ -1,23 +1,41 @@
 {
-  "name": "nedb",
-  "version": "1.8.0",
+  "name": "nestdb",
+  "description": "The Javascript Database for Node.js, nwjs, Electron, and the browser",
+  "version": "2.0.0-alpha.1",
+  "license": "MIT",
   "author": {
-    "name": "Louis Chatriot",
-    "email": "louis.chatriot@gmail.com"
+    "name": "James M. Greene",
+    "email": "james.m.greene@gmail.com",
+    "url": "http://jamesmgreene.github.io/"
   },
   "contributors": [
-    "Louis Chatriot"
+    {
+      "name": "Louis Chatriot",
+      "email": "louis.chatriot@gmail.com"
+    }
   ],
-  "description": "File-based embedded data store for node.js",
   "keywords": [
     "database",
     "datastore",
-    "embedded"
+    "embedded",
+    "nested",
+    "nestdb",
+    "nedb",
+    "newdb",
+    "nedb-core",
+    "nedb2",
+    "nedb3",
+    "mongo-lite",
+    "mongodb-lite"
   ],
-  "homepage": "https://github.com/louischatriot/nedb",
+  "homepage": "https://github.com/JamesMGreene/nestdb",
   "repository": {
     "type": "git",
-    "url": "git@github.com:louischatriot/nedb.git"
+    "url": "git@github.com:JamesMGreene/nestdb.git"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "./node_modules/.bin/mocha --reporter spec --timeout 10000"
   },
   "dependencies": {
     "async": "0.2.10",
@@ -34,13 +52,8 @@
     "exec-time": "0.0.2",
     "commander": "1.1.1"
   },
-  "scripts": {
-    "test": "./node_modules/.bin/mocha --reporter spec --timeout 10000"
-  },
-  "main": "index",
   "browser": {
     "./lib/customUtils.js": "./browser-version/browser-specific/lib/customUtils.js",
     "./lib/storage.js": "./browser-version/browser-specific/lib/storage.js"
-  },
-  "license": "SEE LICENSE IN LICENSE"
+  }
 }

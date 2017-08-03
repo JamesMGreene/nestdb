@@ -1,8 +1,8 @@
 var fs = require('fs')
   , child_process = require('child_process')
   , async = require('async')
-  , Nedb = require('../lib/datastore')
-  , db = new Nedb({ filename: './workspace/openfds.db', autoload: true })
+  , NestDB = require('../lib/datastore')
+  , db = new NestDB({ filename: './workspace/openfds.db', autoload: true })
   , N = 64   // Half the allowed file descriptors
   , i, fds
   ;
@@ -39,7 +39,7 @@ async.waterfall([
       return cb();
     })
   }
-  // Then actually test NeDB persistence
+  // Then actually test NestDB persistence
 , function () {
     db.remove({}, { multi: true }, function (err) {
       if (err) { console.log(err); }
