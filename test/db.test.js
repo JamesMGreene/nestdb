@@ -40,20 +40,6 @@ describe('Database', function () {
     ], done);
   });
 
-  it('Constructor compatibility with v0.6-', function () {
-    var dbef = new Datastore('somefile');
-    dbef.filename.should.equal('somefile');
-    dbef.inMemoryOnly.should.equal(false);
-
-    var dbef = new Datastore('');
-    assert.isNull(dbef.filename);
-    dbef.inMemoryOnly.should.equal(true);
-
-    var dbef = new Datastore();
-    assert.isNull(dbef.filename);
-    dbef.inMemoryOnly.should.equal(true);
-  });
-
   describe('Autoloading', function () {
 
     it('Can autoload a database and query it right away', function (done) {

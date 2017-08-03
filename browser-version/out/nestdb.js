@@ -1092,17 +1092,11 @@ var customUtils = require('./customUtils')
 function Datastore (options) {
   var filename;
 
-  // Retrocompatibility with v0.6 and before
-  if (typeof options === 'string') {
-    filename = options;
-    this.inMemoryOnly = false;   // Default
-  } else {
-    options = options || {};
-    filename = options.filename;
-    this.inMemoryOnly = options.inMemoryOnly || false;
-    this.autoload = options.autoload || false;
-    this.timestampData = options.timestampData || false;
-  }
+  options = options || {};
+  filename = options.filename;
+  this.inMemoryOnly = options.inMemoryOnly || false;
+  this.autoload = options.autoload || false;
+  this.timestampData = options.timestampData || false;
 
   // Determine whether in memory or persistent
   if (!filename || typeof filename !== 'string' || filename.length === 0) {
