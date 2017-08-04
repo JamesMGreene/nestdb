@@ -1616,14 +1616,14 @@ describe('Database', function () {
           d2.update({ a: 1 }, { $set: { b: 2 } }, {});
           d2.findOne({ a: 1 }, function (err, doc) {
             doc.createdAt.getTime().should.equal(createdAt);
-            assert.isBelow(Date.now() - doc.updatedAt.getTime(), 5);
+            assert.isBelow(Date.now() - doc.updatedAt.getTime(), 8);
 
             // Complete replacement
             setTimeout(function () {
               d2.update({ a: 1 }, { c: 3 }, {});
               d2.findOne({ c: 3 }, function (err, doc) {
                 doc.createdAt.getTime().should.equal(createdAt);
-                assert.isBelow(Date.now() - doc.updatedAt.getTime(), 5);
+                assert.isBelow(Date.now() - doc.updatedAt.getTime(), 8);
 
                 done();
               });
