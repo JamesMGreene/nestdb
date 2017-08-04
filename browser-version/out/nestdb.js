@@ -1072,11 +1072,13 @@ var customUtils = require('./customUtils')
   , _ = require('underscore')
   , Persistence = require('./persistence')
   , Cursor = require('./cursor')
+  , EventEmitter = require('events').EventEmitter
   ;
 
 
 /**
  * Create a new collection
+ *
  * @param {String} options.filename Optional, datastore will be in-memory only if not provided
  * @param {Boolean} options.timestampData Optional, defaults to false. If set to true, createdAt and updatedAt will be created and populated automatically (if not specified by user)
  * @param {Boolean} options.inMemoryOnly Optional, defaults to false
@@ -1086,14 +1088,23 @@ var customUtils = require('./customUtils')
  * @param {Number} options.corruptAlertThreshold Optional, threshold after which an alert is thrown if too much data is corrupt
  * @param {Function} options.compareStrings Optional, string comparison function that overrides default for sorting
  *
- * Event Emitter - Events
- * * compaction.done - Fired whenever a compaction operation was finished
+ * @fires Datastore#compaction.done
+ *
+ * Event Emitter
+ *  - Instance Events
+ *      - "compaction.done": Emitted whenever a compaction operation is completed for this Datastore
+ *          - callback:  function() { ... }
+ *          - context:   this
  */
-function Datastore (options) {
-  var filename;
+function Datastore(options) {
+  if ( !(this instanceof Datastore) ) {
+    return new Datastore(options);
+  }
+
+  EventEmitter.call(this);
 
   options = options || {};
-  filename = options.filename;
+  var filename = options.filename;
   this.inMemoryOnly = options.inMemoryOnly || false;
   this.autoload = options.autoload || false;
   this.timestampData = options.timestampData || false;
@@ -1135,7 +1146,7 @@ function Datastore (options) {
   }); }
 }
 
-util.inherits(Datastore, require('events').EventEmitter);
+util.inherits(Datastore, EventEmitter);
 
 
 /**
@@ -1392,9 +1403,11 @@ Datastore.prototype.getCandidates = function (query, dontExpireStaleDocs, callba
 
 /**
  * Insert a new document
+ *
  * @param {Function} cb Optional callback, signature: err, insertedDoc
  *
- * @api private Use Datastore.insert which has the same signature
+ * @private
+ * @see Datastore#insert
  */
 Datastore.prototype._insert = function (newDoc, cb) {
   var callback = cb || function () {}
@@ -1414,6 +1427,7 @@ Datastore.prototype._insert = function (newDoc, cb) {
   });
 };
 
+
 /**
  * Create a new _id that's not already in use
  */
@@ -1426,10 +1440,11 @@ Datastore.prototype.createNewId = function () {
   return tentativeId;
 };
 
+
 /**
  * Prepare a document (or array of documents) to be inserted in a database
  * Meaning adds _id and timestamps if necessary on a copy of newDoc to avoid any side effect on user input
- * @api private
+ * @private
  */
 Datastore.prototype.prepareDocumentForInsertion = function (newDoc) {
   var preparedDoc, self = this;
@@ -1449,9 +1464,10 @@ Datastore.prototype.prepareDocumentForInsertion = function (newDoc) {
   return preparedDoc;
 };
 
+
 /**
  * If newDoc is an array of documents, this will insert all documents in the cache
- * @api private
+ * @private
  */
 Datastore.prototype._insertInCache = function (preparedDoc) {
   if (util.isArray(preparedDoc)) {
@@ -1461,10 +1477,11 @@ Datastore.prototype._insertInCache = function (preparedDoc) {
   }
 };
 
+
 /**
  * If one insertion fails (e.g. because of a unique constraint), roll back all previous
  * inserts and throws the error
- * @api private
+ * @private
  */
 Datastore.prototype._insertMultipleDocsInCache = function (preparedDocs) {
   var i, failingI, error;
@@ -1487,6 +1504,7 @@ Datastore.prototype._insertMultipleDocsInCache = function (preparedDocs) {
     throw error;
   }
 };
+
 
 Datastore.prototype.insert = function () {
   this.executor.push({ this: this, fn: this._insert, arguments: arguments });
@@ -1590,6 +1608,7 @@ Datastore.prototype.findOne = function (query, projection, callback) {
 
 /**
  * Update all docs matching query
+ *
  * @param {Object} query
  * @param {Object} updateQuery
  * @param {Object} options Optional options
@@ -1604,20 +1623,22 @@ Datastore.prototype.findOne = function (query, projection, callback) {
  *                        * For an update with returnUpdatedDocs true and multi false, the updated document
  *                        * For an update with returnUpdatedDocs true and multi true, the array of updated documents
  *
- * WARNING: The API was changed between v1.7.4 and v1.8, for consistency and readability reasons. Prior and including to v1.7.4,
+ * WARNING: The API was changed between v1.7.4 and v1.8.0, for consistency and readability reasons. Prior and including to v1.7.4,
  *          the callback signature was (err, numAffected, updated) where updated was the updated document in case of an upsert
  *          or the array of updated documents for an update if the returnUpdatedDocs option was true. That meant that the type of
  *          affectedDocuments in a non multi update depended on whether there was an upsert or not, leaving only two ways for the
  *          user to check whether an upsert had occured: checking the type of affectedDocuments or running another find query on
  *          the whole dataset to check its size. Both options being ugly, the breaking change was necessary.
  *
- * @api private Use Datastore.update which has the same signature
+ * @private
+ * @see Datastore#update
  */
 Datastore.prototype._update = function (query, updateQuery, options, cb) {
   var callback
     , self = this
     , numReplaced = 0
-    , multi, upsert
+    , multi
+    , upsert
     , i
     ;
 
@@ -1709,6 +1730,7 @@ Datastore.prototype._update = function (query, updateQuery, options, cb) {
   }]);
 };
 
+
 Datastore.prototype.update = function () {
   this.executor.push({ this: this, fn: this._update, arguments: arguments });
 };
@@ -1717,12 +1739,14 @@ Datastore.prototype.update = function () {
 /**
  * Remove all docs matching the query
  * For now very naive implementation (similar to update)
+ *
  * @param {Object} query
  * @param {Object} options Optional options
  *                 options.multi If true, can update multiple documents (defaults to false)
  * @param {Function} cb Optional callback, signature: err, numRemoved
  *
- * @api private Use Datastore.remove which has the same signature
+ * @private
+ * @see Datastore#remove
  */
 Datastore.prototype._remove = function (query, options, cb) {
   var callback
@@ -1752,6 +1776,7 @@ Datastore.prototype._remove = function (query, options, cb) {
     });
   });
 };
+
 
 Datastore.prototype.remove = function () {
   this.executor.push({ this: this, fn: this._remove, arguments: arguments });
@@ -1948,7 +1973,7 @@ Index.prototype.insert = function (doc) {
  * Insert an array of documents in the index
  * If a constraint is violated, the changes should be rolled back and an error thrown
  *
- * @API private
+ * @private
  */
 Index.prototype.insertMultipleDocs = function (docs) {
   var i, error, failingI;
@@ -2023,7 +2048,7 @@ Index.prototype.update = function (oldDoc, newDoc) {
  * and an error thrown
  * @param {Array of oldDoc, newDoc pairs} pairs
  *
- * @API private
+ * @private
  */
 Index.prototype.updateMultipleDocs = function (pairs) {
   var i, failingI, error;
