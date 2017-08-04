@@ -300,8 +300,8 @@ describe('Persistence', function () {
   });
 
   it("Can listen to compaction events", function (done) {
-    d.on('compaction.done', function () {
-      d.removeAllListeners('compaction.done');   // Tidy up for next tests
+    d.on('compacted', function () {
+      d.removeAllListeners('compacted');   // Tidy up for next tests
       done();
     });
 

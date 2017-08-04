@@ -525,7 +525,7 @@ describe('Database', function () {
                   assert.isNull(err);
                   assert.isNull(doc);
 
-                  d.on('compaction.done', function () {
+                  d.on('compacted', function () {
                     // After compaction, no more mention of the document, correctly removed
                     var datafileContents = fs.readFileSync(testDb, 'utf8');
                     datafileContents.split('\n').length.should.equal(2);

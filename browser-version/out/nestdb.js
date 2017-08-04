@@ -1088,11 +1088,11 @@ var customUtils = require('./customUtils')
  * @param {Number} options.corruptAlertThreshold Optional, threshold after which an alert is thrown if too much data is corrupt
  * @param {Function} options.compareStrings Optional, string comparison function that overrides default for sorting
  *
- * @fires Datastore#compaction.done
+ * @fires Datastore#compacted
  *
  * Event Emitter
  *  - Instance Events
- *      - "compaction.done": Emitted whenever a compaction operation is completed for this Datastore
+ *      - "compacted": Emitted whenever a compaction operation is completed for this Datastore
  *          - callback:  function() { ... }
  *          - context:   this
  */
@@ -3124,7 +3124,7 @@ Persistence.prototype.persistCachedDatabase = function (cb) {
 
   storage.crashSafeWriteFile(this.filename, toPersist, function (err) {
     if (err) { return callback(err); }
-    self.db.emit('compaction.done');
+    self.db.emit('compacted');
     return callback(null);
   });
 };
