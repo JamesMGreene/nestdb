@@ -12,7 +12,7 @@ Module name on npm and bower is `nestdb`.
 
 ```
 npm install nestdb --save    # Put latest version in your package.json
-npm test                   # You'll need the dev dependencies to launch tests
+npm test                     # You'll need the dev dependencies to launch tests
 bower install nestdb         # For the browser versions, which will be in browser-version/out
 ```
 
@@ -48,48 +48,71 @@ You can use NestDB as an in-memory only datastore or as a persistent datastore. 
 * `corruptAlertThreshold` (optional): between 0 (0%) and 1 (100%), defaults to 0.1 (10%). NestDB will refuse to start if more than this percentage of the datafile is corrupt. 0 means you don't tolerate any corruption, 1 means you don't care.
 * `compareStrings` (optional): `function compareStrings(a, b)` should compare strings `a` and `b` and must return `-1`, `0` or `1`. If specified, it overrides default string comparison (`===`), which is not well adapted to non-US characters such as accented or diacritical letters. Using the native `String.prototype.localeCompare` will be the right choice most of the time.
 
-
 If you use a persistent datastore without the `autoload` option, you need to call `loadDatabase` manually.
-This function fetches the data from datafile and prepares the database. **Don't forget it!** If you use a
-persistent datastore, no command (insert, find, update, remove) will be executed before `loadDatabase`
-is called, so make sure to call it yourself or use the `autoload` option.
+This function fetches the data from datafile and prepares the database. **Do NOT forget it!** If you use a
+persistent datastore, no command (e.g. `insert`, `find`, `update`, `remove`) will be executed before `loadDatabase`
+is called, so make sure to either call it yourself or use the `autoload` option.
 
 Also, if `loadDatabase` fails, all commands registered to the executor afterwards will not be executed. They will be registered and executed, in sequence, only after a successful `loadDatabase`.
 
+Once the datastore is fully loaded, it also emits a `"loaded"` event that you can add a listener for.
+
+#### Type 1: In-memory only datastore (no need to load the database)
+
 ```js
-// Type 1: In-memory only datastore (no need to load the database)
 var Datastore = require('nestdb')
   , db = new Datastore();
+// You can issue commands right away
+```
 
+#### Type 2: Persistent datastore with manual loading
 
-// Type 2: Persistent datastore with manual loading
+```js
 var Datastore = require('nestdb')
   , db = new Datastore({ filename: 'path/to/datafile' });
 db.loadDatabase(function (err) {    // Callback is optional
   // Now commands will be executed
 });
+```
 
+#### Type 3: Persistent datastore with automatic loading
 
-// Type 3: Persistent datastore with automatic loading
+```js
 var Datastore = require('nestdb')
   , db = new Datastore({ filename: 'path/to/datafile', autoload: true });
-// You can issue commands right away
+// You can issue commands right away because of NestDB's internal queueing
 
+// You can also synchronously add an event listener for the 'loaded' event
+// If not added synchronously, you will probably miss the event
+db.once('loaded', function (err) {
+  if (err) {
+    console.error('Failed to load datastore:', err);
+  } else {
+    console.log('Loaded the datastore!');
+  }
+});
+```
 
-// Type 4: Persistent datastore for a Node Webkit app called 'nwtest'
+#### Type 4: Persistent datastore for a Node Webkit app
+
+```js
+// For a Node Webkit app called 'nwtest'
 // For example on Linux, the datafile will be ~/.config/nwtest/nestdb-data/something.db
 var Datastore = require('nestdb')
   , path = require('path')
   , db = new Datastore({ filename: path.join(require('nw.gui').App.dataPath, 'something.db') });
+```
 
+#### Multiple datastores
 
+```js
 // Of course you can create multiple datastores if you need several
 // collections. In this case it's usually a good idea to use autoload for all collections.
 db = {};
 db.users = new Datastore('path/to/users.db');
 db.robots = new Datastore('path/to/robots.db');
 
-// You need to load each database (here we do it asynchronously)
+// You need to load each database (here we do it manually)
 db.users.loadDatabase();
 db.robots.loadDatabase();
 ```
@@ -97,7 +120,7 @@ db.robots.loadDatabase();
 ### Persistence
 Under the hood, NestDB's persistence uses an append-only format, meaning that all updates and deletes actually result in lines added at the end of the datafile, for performance reasons. The database is automatically compacted (i.e. put back in the one-line-per-document format) every time you load each database within your application.
 
-You can manually call the compaction function with `yourDatabase.persistence.compactDatafile` which takes no argument. It queues a compaction of the datafile in the executor, to be executed sequentially after all pending operations. The datastore will fire a `compacted` event once compaction is finished.
+You can manually call the compaction function with `yourDatabase.persistence.compactDatafile` which takes no argument. It queues a compaction of the datafile in the executor, to be executed sequentially after all pending operations. The datastore will fire a `"compacted"` event once compaction is finished.
 
 You can also set automatic compaction at regular intervals with `yourDatabase.persistence.setAutocompactionInterval(interval)`, `interval` in milliseconds (a minimum of 5s is enforced), and stop automatic compaction with `yourDatabase.persistence.stopAutocompaction()`.
 

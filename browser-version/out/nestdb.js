@@ -1063,7 +1063,7 @@ function uid (len) {
 module.exports.uid = uid;
 
 },{}],7:[function(require,module,exports){
-var customUtils = require('./customUtils')
+var process=require("__browserify_process");var customUtils = require('./customUtils')
   , model = require('./model')
   , async = require('async')
   , Executor = require('./executor')
@@ -1088,10 +1088,14 @@ var customUtils = require('./customUtils')
  * @param {Number} options.corruptAlertThreshold Optional, threshold after which an alert is thrown if too much data is corrupt
  * @param {Function} options.compareStrings Optional, string comparison function that overrides default for sorting
  *
+ * @fires Datastore#loaded
  * @fires Datastore#compacted
  *
  * Event Emitter
  *  - Instance Events
+ *      - "loaded": Emitted when this Datastore is fully loaded (or errs and fails to load)
+ *          - callback:  function( err ) { ... }
+ *          - context:   this
  *      - "compacted": Emitted whenever a compaction operation is completed for this Datastore
  *          - callback:  function() { ... }
  *          - context:   this
@@ -1141,9 +1145,9 @@ function Datastore(options) {
 
   // Queue a load of the database right away and call the onload handler
   // By default (no onload handler), if there is an error there, no operation will be possible so warn the user by throwing an exception
-  if (this.autoload) { this.loadDatabase(options.onload || function (err) {
-    if (err) { throw err; }
-  }); }
+  if (this.autoload) {
+    this.loadDatabase(options.onload);
+  }
 }
 
 util.inherits(Datastore, EventEmitter);
@@ -1151,9 +1155,29 @@ util.inherits(Datastore, EventEmitter);
 
 /**
  * Load the database from the datafile, and trigger the execution of buffered commands if any
+ *
+ * @fires Datastore#loaded
  */
-Datastore.prototype.loadDatabase = function () {
-  this.executor.push({ this: this.persistence, fn: this.persistence.loadDatabase, arguments: arguments }, true);
+Datastore.prototype.loadDatabase = function (cb) {
+  var self = this
+    , callback = cb || function (err) { if (err) { throw err; } }
+    , eventedCallback = function (err) {
+        var emissionCallback = function () {
+          // Ensure there are listeners registered before making any unnecessary function calls to `emit`
+          if ( self.listeners( 'loaded' ).length > 0 ) {
+            self.emit('loaded', err);
+          }
+          callback(err);
+        };
+
+        if (typeof setImmediate === 'function') {
+          setImmediate(emissionCallback);
+        } else {
+          process.nextTick(emissionCallback);
+        }
+      };
+
+  this.executor.push({ this: this.persistence, fn: this.persistence.loadDatabase, arguments: [eventedCallback] }, true);
 };
 
 
@@ -1786,7 +1810,7 @@ Datastore.prototype.remove = function () {
 
 module.exports = Datastore;
 
-},{"./cursor":5,"./customUtils":6,"./executor":8,"./indexes":9,"./model":10,"./persistence":11,"async":13,"events":1,"underscore":19,"util":3}],8:[function(require,module,exports){
+},{"./cursor":5,"./customUtils":6,"./executor":8,"./indexes":9,"./model":10,"./persistence":11,"__browserify_process":4,"async":13,"events":1,"underscore":19,"util":3}],8:[function(require,module,exports){
 var process=require("__browserify_process");/**
  * Responsible for sequentially executing actions on the database
  */

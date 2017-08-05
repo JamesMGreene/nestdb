@@ -40,6 +40,14 @@ describe('Database', function () {
     ], done);
   });
 
+  it( 'should contain all expected EventEmitter methods', function() {
+    var expectedProperties = [ 'emit', 'on', 'once', 'listeners', 'removeListener', 'removeAllListeners' ];
+    expectedProperties.forEach(function (prop) {
+      assert.isOk(d[prop]);
+      d[prop].should.be.a( 'function' );
+    });
+  });
+
   describe('Autoloading', function () {
 
     it('Can autoload a database and query it right away', function (done) {
@@ -77,6 +85,56 @@ describe('Database', function () {
       db.find({}, function (err, docs) {
         done(new Error("Find should not be executed since autoload failed"));
       });
+    });
+
+  });
+
+  describe( 'emits "loaded" event', function () {
+
+    describe( 'automatically for `autoload:true`', function () {
+
+      it('for in-memory datastores', function (done) {
+        // Arrange & schedule to Act
+        var db = new Datastore({ inMemoryOnly: true, autoload: true });
+
+        // Prepare to Assert
+        db.once('loaded', done);
+      });
+
+      it('for persistent datastores', function (done) {
+        // Arrange & schedule to Act
+        var db = new Datastore({ filename: testDb, autoload: true });
+
+        // Prepare to Assert
+        db.once('loaded', done);
+      });
+
+    });
+
+    describe( 'upon `loadDatabase` being invoked for `autoload:false`', function () {
+
+      it('for in-memory datastores', function (done) {
+        // Arrange
+        var db = new Datastore({ inMemoryOnly: true, autoload: false });
+
+        // Prepare to Assert
+        db.once('loaded', done);
+
+        // Act
+        db.loadDatabase();
+      });
+
+      it('for persistent datastores', function (done) {
+        // Arrange
+        var db = new Datastore({ filename: testDb, autoload: false });
+
+        // Prepare to Assert
+        db.once('loaded', done);
+
+        // Act
+        db.loadDatabase();
+      });
+
     });
 
   });
