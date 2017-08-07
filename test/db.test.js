@@ -89,7 +89,7 @@ describe('Database', function () {
 
   });
 
-  describe('emits "loaded" event', function () {
+  describe('should emit "loaded" event', function () {
 
     describe('automatically for `autoload:true`', function () {
 
@@ -2936,5 +2936,113 @@ describe('Database', function () {
 
   });   // ==== End of 'Using indexes' ==== //
 
+
+  describe('destroy', function () {
+
+    describe('should remove all documents', function () {
+
+      it('for in-memory datastores', function (done) {
+        var db = new Datastore({ inMemoryOnly: true, autoload: true });
+
+        db.getCandidates({}, function (err, res) {
+          assert.isNull(err);
+          res.length.should.equal(0);
+
+          db.insert({ foo: 'a' }, function (err) {
+            assert.isNull(err);
+
+            db.insert({ foo: 'b' }, function (err) {
+              assert.isNull(err);
+
+              db.getCandidates({}, function (err, res) {
+                assert.isNull(err);
+                res.length.should.equal(2);
+
+                db.destroy(function (err) {
+                  assert.isNull(err);
+
+                  db.getCandidates({}, function (err, res) {
+                    assert.isNull(err);
+                    res.length.should.equal(0);
+                    done();
+                  });
+                });
+              });
+            });
+          });
+        });
+      });
+
+      it('for persistent datastores', function (done) {
+        d.getCandidates({}, function (err, res) {
+          assert.isNull(err);
+          res.length.should.equal(0);
+
+          d.insert({ foo: 'a' }, function (err) {
+            assert.isNull(err);
+
+            d.insert({ foo: 'b' }, function (err) {
+              assert.isNull(err);
+
+              d.getCandidates({}, function (err, res) {
+                assert.isNull(err);
+                res.length.should.equal(2);
+
+                d.destroy(function (err) {
+                  assert.isNull(err);
+
+                  d.getCandidates({}, function (err, res) {
+                    assert.isNull(err);
+                    res.length.should.equal(0);
+                    done();
+                  });
+                });
+              });
+            });
+          });
+        });
+      });
+
+    });
+
+    it('should delete the datafile for persistent datastores', function (done) {
+      var db = new Datastore({ filename: testDb, autoload: true });
+
+      db.getCandidates({}, function (err, res) {
+        assert.isNull(err);
+        res.length.should.equal(0);
+
+        db.insert({ foo: 'a' }, function (err) {
+          assert.isNull(err);
+
+          db.insert({ foo: 'b' }, function (err) {
+            assert.isNull(err);
+
+            db.getCandidates({}, function (err, res) {
+              assert.isNull(err);
+              res.length.should.equal(2);
+
+              fs.existsSync(testDb).should.equal(true);
+
+              db.destroy(function (err) {
+                assert.isNull(err);
+                fs.existsSync(testDb).should.equal(false);
+                done();
+              });
+            });
+          });
+        });
+      });
+    });
+
+    it('should emit "destroyed" event', function (done) {
+      d.once('destroyed', function (err) {
+        assert.isNull(err);
+        done();
+      });
+      d.destroy();
+    });
+
+  });
 
 });

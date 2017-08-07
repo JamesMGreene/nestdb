@@ -1090,6 +1090,7 @@ var process=require("__browserify_process");var customUtils = require('./customU
  *
  * @fires Datastore#loaded
  * @fires Datastore#compacted
+ * @fires Datastore#destroyed
  *
  * Event Emitter
  *  - Instance Events
@@ -1098,6 +1099,9 @@ var process=require("__browserify_process");var customUtils = require('./customU
  *          - context:   this
  *      - "compacted": Emitted whenever a compaction operation is completed for this Datastore
  *          - callback:  function() { ... }
+ *          - context:   this
+ *      - "destroyed": Emitted when this Datastore is fully destroyed (or errs and fails to destroy)
+ *          - callback:  function( err ) { ... }
  *          - context:   this
  */
 function Datastore(options) {
@@ -1164,7 +1168,7 @@ Datastore.prototype.loadDatabase = function (cb) {
     , eventedCallback = function (err) {
         var emissionCallback = function () {
           // Ensure there are listeners registered before making any unnecessary function calls to `emit`
-          if ( self.listeners( 'loaded' ).length > 0 ) {
+          if (self.listeners('loaded').length > 0) {
             self.emit('loaded', err);
           }
           callback(err);
@@ -1804,6 +1808,58 @@ Datastore.prototype._remove = function (query, options, cb) {
 
 Datastore.prototype.remove = function () {
   this.executor.push({ this: this, fn: this._remove, arguments: arguments });
+};
+
+
+/**
+ * Remove all docs and then destroy the database's persistent datafile, if any
+ *
+ * @param {Function} cb Optional callback, signature: err
+ *
+ * @private
+ * @see Datastore#destroy
+ */
+Datastore.prototype._destroy = function (cb) {
+  var self = this
+    , callback = cb || function () {};
+
+  self._remove({}, { multi: true }, function (err /*, numRemoved */) {
+    if (err) {
+      return callback(err);
+    }
+
+    self.persistence.destroyDatabase(callback);
+  });
+};
+
+
+/**
+ * Remove all docs and then destroy the database's persistent datafile, if any
+ *
+ * @param {Function} cb Optional callback, signature: err
+ *
+ * @fires Datastore#destroyed
+ */
+Datastore.prototype.destroy = function (cb) {
+  var self = this
+    , callback = cb || function () {}
+    , eventedCallback = function (err) {
+        var emissionCallback = function () {
+          // Ensure there are listeners registered before making any unnecessary function calls to `emit`
+          if (self.listeners('destroyed').length > 0) {
+            self.emit('destroyed', err);
+          }
+          callback(err);
+        };
+
+        if (typeof setImmediate === 'function') {
+          setImmediate(emissionCallback);
+        } else {
+          process.nextTick(emissionCallback);
+        }
+      };
+
+  this.executor.push({ this: this, fn: this._destroy, arguments: [eventedCallback] });
 };
 
 
@@ -3285,6 +3341,27 @@ Persistence.prototype.loadDatabase = function (cb) {
        return callback(null);
      });
 };
+
+
+/**
+ * Destroy the database
+ * This means destroying the data file if it exists
+ *
+ * @param {Function} cb Optional callback, signature: err
+ */
+Persistence.prototype.destroyDatabase = function (cb) {
+  var callback = cb || function () {}
+    , self = this
+    ;
+
+  self.db.resetIndexes();
+
+  // In-memory only datastore
+  if (self.inMemoryOnly) { return callback(null); }
+
+  storage.ensureFileDoesntExist(self.filename, callback);
+};
+
 
 
 // Interface

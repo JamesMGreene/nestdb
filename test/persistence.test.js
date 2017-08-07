@@ -33,12 +33,12 @@ describe('Persistence', function () {
         });
       }
     , function (cb) {
-  d.loadDatabase(function (err) {
-    assert.isNull(err);
-    d.getAllData().length.should.equal(0);
-    return cb();
-  });
-    }
+        d.loadDatabase(function (err) {
+          assert.isNull(err);
+          d.getAllData().length.should.equal(0);
+          return cb();
+        });
+      }
     ], done);
   });
 
@@ -922,5 +922,39 @@ describe('Persistence', function () {
 
   });   // ==== End of 'ensureFileDoesntExist' ====
 
+
+  describe('destroyDatabase', function () {
+
+    it('Does not fail if file does not exist', function (done) {
+      d.filename.should.equal(testDb);
+      d.inMemoryOnly.should.equal(false);
+      fs.existsSync(d.filename).should.equal(true);
+
+      storage.ensureFileDoesntExist(d.filename, function (err) {
+        assert.isNull(err);
+        fs.existsSync(d.filename).should.equal(false);
+
+        d.persistence.destroyDatabase(done);
+      });
+    });
+
+    it('Deletes file if it exists', function (done) {
+      d.filename.should.equal(testDb);
+      d.inMemoryOnly.should.equal(false);
+      fs.existsSync(d.filename).should.equal(true);
+
+      d.persistence.destroyDatabase(function (err) {
+        assert.isNull(err);
+        fs.existsSync(d.filename).should.equal(false);
+        done();
+      });
+    });
+
+    it('Does not fail if the Datastore is in-memory only', function (done) {
+      var db = new Datastore({ inMemoryOnly: true, autoload: true });
+      db.persistence.destroyDatabase(done);
+    });
+
+  });   // ==== End of 'destroyDatabase' ====
 
 });
