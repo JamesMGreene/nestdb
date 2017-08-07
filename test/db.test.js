@@ -89,16 +89,21 @@ describe('Database', function () {
 
   });
 
-  describe( 'emits "loaded" event', function () {
+  describe('emits "loaded" event', function () {
 
-    describe( 'automatically for `autoload:true`', function () {
+    describe('automatically for `autoload:true`', function () {
 
       it('for in-memory datastores', function (done) {
         // Arrange & schedule to Act
         var db = new Datastore({ inMemoryOnly: true, autoload: true });
 
         // Prepare to Assert
-        db.once('loaded', done);
+        db.once('loaded', function (err) {
+          if (!err) {
+            db.should.equal(this);
+          }
+          done(err);
+        });
       });
 
       it('for persistent datastores', function (done) {
@@ -106,19 +111,29 @@ describe('Database', function () {
         var db = new Datastore({ filename: testDb, autoload: true });
 
         // Prepare to Assert
-        db.once('loaded', done);
+        db.once('loaded', function (err) {
+          if (!err) {
+            db.should.equal(this);
+          }
+          done(err);
+        });
       });
 
     });
 
-    describe( 'upon `loadDatabase` being invoked for `autoload:false`', function () {
+    describe('upon `loadDatabase` being invoked for `autoload:false`', function () {
 
       it('for in-memory datastores', function (done) {
         // Arrange
         var db = new Datastore({ inMemoryOnly: true, autoload: false });
 
         // Prepare to Assert
-        db.once('loaded', done);
+        db.once('loaded', function (err) {
+          if (!err) {
+            db.should.equal(this);
+          }
+          done(err);
+        });
 
         // Act
         db.loadDatabase();
@@ -129,7 +144,12 @@ describe('Database', function () {
         var db = new Datastore({ filename: testDb, autoload: false });
 
         // Prepare to Assert
-        db.once('loaded', done);
+        db.once('loaded', function (err) {
+          if (!err) {
+            db.should.equal(this);
+          }
+          done(err);
+        });
 
         // Act
         db.loadDatabase();
