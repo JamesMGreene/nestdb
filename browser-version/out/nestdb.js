@@ -3024,7 +3024,7 @@ module.exports.areThingsEqual = areThingsEqual;
 module.exports.compareThings = compareThings;
 
 },{"underscore":19,"util":3}],11:[function(require,module,exports){
-var process=require("__browserify_process");/**
+/**
  * Handle every persistence-related task
  * The interface Datastore expects to be implemented is
  * * Persistence.loadDatabase(callback) and callback has signature err
@@ -3086,41 +3086,6 @@ Persistence.ensureDirectoryExists = function (dir, cb) {
 
   storage.mkdirp(dir, function (err) { return callback(err); });
 };
-
-
-
-
-/**
- * Return the path the datafile if the given filename is relative to the directory where Node Webkit stores
- * data for this application. Probably the best place to store data
- */
-Persistence.getNWAppFilename = function (appName, relativeFilename) {
-  var home;
-
-  switch (process.platform) {
-    case 'win32':
-    case 'win64':
-      home = process.env.LOCALAPPDATA || process.env.APPDATA;
-      if (!home) { throw new Error("Couldn't find the base application data folder"); }
-      home = path.join(home, appName);
-      break;
-    case 'darwin':
-      home = process.env.HOME;
-      if (!home) { throw new Error("Couldn't find the base application data directory"); }
-      home = path.join(home, 'Library', 'Application Support', appName);
-      break;
-    case 'linux':
-      home = process.env.HOME;
-      if (!home) { throw new Error("Couldn't find the base application data directory"); }
-      home = path.join(home, '.config', appName);
-      break;
-    default:
-      throw new Error("Can't use the Node Webkit relative path for platform " + process.platform);
-      break;
-  }
-
-  return path.join(home, 'nestdb-data', relativeFilename);
-}
 
 
 /**
@@ -3325,7 +3290,7 @@ Persistence.prototype.loadDatabase = function (cb) {
 // Interface
 module.exports = Persistence;
 
-},{"./customUtils":6,"./indexes":9,"./model":10,"./storage":12,"__browserify_process":4,"async":13,"path":2}],12:[function(require,module,exports){
+},{"./customUtils":6,"./indexes":9,"./model":10,"./storage":12,"async":13,"path":2}],12:[function(require,module,exports){
 /**
  * Way data is stored for this database
  * For a Node.js/Node Webkit database it's the file system
