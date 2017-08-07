@@ -31,7 +31,7 @@ describe('Cursor', function () {
         });
       }
     , function (cb) {
-        d.loadDatabase(function (err) {
+        d.load(function (err) {
           assert.isNull(err);
           d.getAllData().length.should.equal(0);
           return cb();

@@ -31,7 +31,7 @@ describe('Database', function () {
         });
       }
     , function (cb) {
-        d.loadDatabase(function (err) {
+        d.load(function (err) {
           assert.isNull(err);
           d.getAllData().length.should.equal(0);
           return cb();
@@ -74,7 +74,7 @@ describe('Database', function () {
 
       fs.writeFileSync(autoDb, fileStr, 'utf8');
 
-      // Check the loadDatabase generated an error
+      // Verify that `load` generated an error
       function onload (err) {
         err.errorType.should.equal('uniqueViolated');
         done();
@@ -121,7 +121,7 @@ describe('Database', function () {
 
     });
 
-    describe('upon `loadDatabase` being invoked for `autoload:false`', function () {
+    describe('upon `load` being invoked for `autoload:false`', function () {
 
       it('for in-memory datastores', function (done) {
         // Arrange
@@ -136,7 +136,7 @@ describe('Database', function () {
         });
 
         // Act
-        db.loadDatabase();
+        db.load();
       });
 
       it('for persistent datastores', function (done) {
@@ -152,7 +152,7 @@ describe('Database', function () {
         });
 
         // Act
-        db.loadDatabase();
+        db.load();
       });
 
     });
@@ -175,7 +175,7 @@ describe('Database', function () {
             assert.isDefined(docs[0]._id);
 
             // After a reload the data has been correctly persisted
-            d.loadDatabase(function (err) {
+            d.load(function (err) {
               d.find({}, function (err, docs) {
                 assert.isNull(err);
                 docs.length.should.equal(1);
@@ -362,7 +362,7 @@ describe('Database', function () {
             assert.deepEqual({ hello: 'world', _id: insertedDoc._id, createdAt: insertedDoc.createdAt, updatedAt: insertedDoc.updatedAt }, docs[0]);
 
             // All data correctly persisted on disk
-            d.loadDatabase(function () {
+            d.load(function () {
               d.find({}, function (err, docs) {
                 docs.length.should.equal(1);
                 assert.deepEqual(newDoc, { hello: 'world' });
@@ -402,7 +402,7 @@ describe('Database', function () {
         d.find({}, function (err, docs) {
           assert.deepEqual(insertedDoc, docs[0]);
 
-          d.loadDatabase(function () {
+          d.load(function () {
             d.find({}, function (err, docs) {
               assert.deepEqual(insertedDoc, docs[0]);
 
@@ -424,7 +424,7 @@ describe('Database', function () {
         d.find({}, function (err, docs) {
           assert.deepEqual(insertedDoc, docs[0]);
 
-          d.loadDatabase(function () {
+          d.load(function () {
             d.find({}, function (err, docs) {
               assert.deepEqual(insertedDoc, docs[0]);
 
@@ -1210,7 +1210,7 @@ describe('Database', function () {
       }
       , async.apply(testPostUpdateState)
       , function (cb) {
-        d.loadDatabase(function (err) { cb(err); });
+        d.load(function (err) { cb(err); });
       }
       , async.apply(testPostUpdateState)
       ], done);
@@ -1268,7 +1268,7 @@ describe('Database', function () {
       }
       , async.apply(testPostUpdateState)
       , function (cb) {
-        d.loadDatabase(function (err) { return cb(err); });
+        d.load(function (err) { return cb(err); });
       }
       , async.apply(testPostUpdateState)   // The persisted state has been updated
       ], done);
@@ -1516,7 +1516,7 @@ describe('Database', function () {
               _.isEqual(docs[1], { _id: doc2._id, a:2, hello: 'changed' }).should.equal(true);
 
               // Even after a reload the database state hasn't changed
-              d.loadDatabase(function (err) {
+              d.load(function (err) {
                 assert.isNull(err);
 
                 d.find({}, function (err, docs) {
@@ -1549,7 +1549,7 @@ describe('Database', function () {
                 _.isEqual(docs[2], { _id: doc3._id, a:5, hello: 'pluton' }).should.equal(true);
 
                 // Even after a reload the database state hasn't changed
-                d.loadDatabase(function (err) {
+                d.load(function (err) {
                   assert.isNull(err);
 
                   d.find({}, function (err, docs) {
@@ -1835,7 +1835,7 @@ describe('Database', function () {
       }
       , async.apply(testPostUpdateState)
       , function (cb) {
-        d.loadDatabase(function (err) { return cb(err); });
+        d.load(function (err) { return cb(err); });
       }
       , async.apply(testPostUpdateState)
       ], done);
@@ -1892,7 +1892,7 @@ describe('Database', function () {
                 _.isEqual(docs[1], { _id: doc3._id, a:3, hello: 'moto' }).should.equal(true);
 
                 // Even after a reload the database state hasn't changed
-                d.loadDatabase(function (err) {
+                d.load(function (err) {
                   assert.isNull(err);
 
                   d.find({}, function (err, docs) {
@@ -1923,7 +1923,7 @@ describe('Database', function () {
                 _.isEqual(docs[0], { _id: doc2._id, a:2, hello: 'earth' }).should.equal(true);
 
                 // Even after a reload the database state hasn't changed
-                d.loadDatabase(function (err) {
+                d.load(function (err) {
                   assert.isNull(err);
 
                   d.find({}, function (err, docs) {
@@ -1972,7 +1972,7 @@ describe('Database', function () {
 
     describe('ensureIndex and index initialization in database loading', function () {
 
-      it('ensureIndex can be called right after a loadDatabase and be initialized and filled correctly', function (done) {
+      it('ensureIndex can be called right after a load and be initialized and filled correctly', function (done) {
         var now = new Date()
           , rawData = model.serialize({ _id: "aaa", z: "1", a: 2, ages: [1, 5, 12] }) + '\n' +
                       model.serialize({ _id: "bbb", z: "2", hello: 'world' }) + '\n' +
@@ -1982,7 +1982,7 @@ describe('Database', function () {
         d.getAllData().length.should.equal(0);
 
         fs.writeFile(testDb, rawData, 'utf8', function () {
-          d.loadDatabase(function () {
+          d.load(function () {
             d.getAllData().length.should.equal(3);
 
             assert.deepEqual(Object.keys(d.indexes), ['_id']);
@@ -2043,7 +2043,7 @@ describe('Database', function () {
         d.getAllData().length.should.equal(0);
 
         fs.writeFile(testDb, rawData, 'utf8', function () {
-          d.loadDatabase(function () {
+          d.load(function () {
             d.getAllData().length.should.equal(2);
 
             assert.deepEqual(Object.keys(d.indexes), ['_id']);
@@ -2088,7 +2088,7 @@ describe('Database', function () {
         });
       });
 
-      it('ensureIndex can be called before a loadDatabase and still be initialized and filled correctly', function (done) {
+      it('ensureIndex can be called before a load and still be initialized and filled correctly', function (done) {
         var now = new Date()
           , rawData = model.serialize({ _id: "aaa", z: "1", a: 2, ages: [1, 5, 12] }) + '\n' +
                       model.serialize({ _id: "bbb", z: "2", hello: 'world' }) + '\n' +
@@ -2104,7 +2104,7 @@ describe('Database', function () {
         d.indexes.z.tree.getNumberOfKeys().should.equal(0);
 
         fs.writeFile(testDb, rawData, 'utf8', function () {
-          d.loadDatabase(function () {
+          d.load(function () {
             var doc1 = _.find(d.getAllData(), function (doc) { return doc.z === "1"; })
               , doc2 = _.find(d.getAllData(), function (doc) { return doc.z === "2"; })
               , doc3 = _.find(d.getAllData(), function (doc) { return doc.z === "3"; })
@@ -2136,7 +2136,7 @@ describe('Database', function () {
             d.indexes.z.tree.getNumberOfKeys().should.equal(0);
 
             fs.writeFile(testDb, rawData, 'utf8', function () {
-              d.loadDatabase(function (err) {
+              d.load(function (err) {
                 var doc1 = _.find(d.getAllData(), function (doc) { return doc.z === "1"; })
                   , doc2 = _.find(d.getAllData(), function (doc) { return doc.z === "2"; })
                   , doc3 = _.find(d.getAllData(), function (doc) { return doc.z === "3"; })
@@ -2176,7 +2176,7 @@ describe('Database', function () {
         d.indexes.z.tree.getNumberOfKeys().should.equal(0);
 
         fs.writeFile(testDb, rawData, 'utf8', function () {
-          d.loadDatabase(function (err) {
+          d.load(function (err) {
             err.errorType.should.equal('uniqueViolated');
             err.key.should.equal("1");
             d.getAllData().length.should.equal(0);
@@ -2302,7 +2302,7 @@ describe('Database', function () {
 
             // Data didn't change
             assert.deepEqual(d.getAllData(), [newDoc]);
-            d.loadDatabase(function () {
+            d.load(function () {
               d.getAllData().length.should.equal(1);
               assert.deepEqual(d.getAllData()[0], newDoc);
 
@@ -2737,7 +2737,7 @@ describe('Database', function () {
 
               // After a reload the indexes are recreated
               db = new Datastore({ filename: persDb });
-              db.loadDatabase(function (err) {
+              db.load(function (err) {
                 assert.isNull(err);
                 Object.keys(db.indexes).length.should.equal(2);
                 Object.keys(db.indexes)[0].should.equal("_id");
@@ -2748,7 +2748,7 @@ describe('Database', function () {
 
                 // After another reload the indexes are still there (i.e. they are preserved during autocompaction)
                 db = new Datastore({ filename: persDb });
-                db.loadDatabase(function (err) {
+                db.load(function (err) {
                   assert.isNull(err);
                   Object.keys(db.indexes).length.should.equal(2);
                   Object.keys(db.indexes)[0].should.equal("_id");
@@ -2795,7 +2795,7 @@ describe('Database', function () {
 
                 // After a reload the indexes are recreated
                 db = new Datastore({ filename: persDb });
-                db.loadDatabase(function (err) {
+                db.load(function (err) {
                   assert.isNull(err);
                   Object.keys(db.indexes).length.should.equal(2);
                   Object.keys(db.indexes)[0].should.equal("_id");
@@ -2821,7 +2821,7 @@ describe('Database', function () {
 
                     // After another reload the indexes are still there (i.e. they are preserved during autocompaction)
                     db = new Datastore({ filename: persDb });
-                    db.loadDatabase(function (err) {
+                    db.load(function (err) {
                       assert.isNull(err);
                       Object.keys(db.indexes).length.should.equal(3);
                       Object.keys(db.indexes)[0].should.equal("_id");
@@ -2875,7 +2875,7 @@ describe('Database', function () {
 
                 // After a reload the indexes are recreated
                 db = new Datastore({ filename: persDb });
-                db.loadDatabase(function (err) {
+                db.load(function (err) {
                   assert.isNull(err);
                   Object.keys(db.indexes).length.should.equal(3);
                   Object.keys(db.indexes)[0].should.equal("_id");
@@ -2895,7 +2895,7 @@ describe('Database', function () {
 
                     // After a reload indexes are preserved
                     db = new Datastore({ filename: persDb });
-                    db.loadDatabase(function (err) {
+                    db.load(function (err) {
                       assert.isNull(err);
                       Object.keys(db.indexes).length.should.equal(2);
                       Object.keys(db.indexes)[0].should.equal("_id");
@@ -2904,7 +2904,7 @@ describe('Database', function () {
 
                       // After another reload the indexes are still there (i.e. they are preserved during autocompaction)
                       db = new Datastore({ filename: persDb });
-                      db.loadDatabase(function (err) {
+                      db.load(function (err) {
                         assert.isNull(err);
                         Object.keys(db.indexes).length.should.equal(2);
                         Object.keys(db.indexes)[0].should.equal("_id");

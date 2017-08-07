@@ -34,7 +34,6 @@ It is a subset of MongoDB's API (the most used operations).
 * <a href="#removing-documents">Removing documents</a>
 * <a href="#indexing">Indexing</a>
 * <a href="#destroying">Destroying a datastore</a>
-* <a href="#browser-version">Browser version</a>
 
 ### Creating/loading a datastore
 You can use NestDB as an in-memory only datastore or as a persistent datastore. One datastore is the equivalent of a MongoDB collection. The constructor is used as follows `new Datastore(options)` where `options` is an object with the following fields:
@@ -42,19 +41,19 @@ You can use NestDB as an in-memory only datastore or as a persistent datastore. 
 * `filename` (optional): path to the file where the data is persisted. If left blank, the datastore is automatically considered in-memory only. It cannot end with a `~` which is used in the temporary files NestDB uses to perform crash-safe writes.
 * `inMemoryOnly` (optional, defaults to `false`): as the name implies.
 * `timestampData` (optional, defaults to `false`): timestamp the insertion and last update of all documents, with the fields `createdAt` and `updatedAt`. User-specified values override automatic generation, usually useful for testing.
-* `autoload` (optional, defaults to `false`): if used, the datastore will automatically be loaded from the datafile upon creation (you don't need to call `loadDatabase`). Any command issued before load is finished is buffered and will be executed when load is done.
-* `onload` (optional): if you use autoloading, this is the handler called after the `loadDatabase`. It takes one `error` argument. If you use autoloading without specifying this handler, and an error happens during load, an error will be thrown.
+* `autoload` (optional, defaults to `false`): if used, the datastore will automatically be loaded from the datafile upon creation (you don't need to call `load`). Any command issued before load is finished is buffered and will be executed when load is done.
+* `onload` (optional): if you use autoloading, this is the handler called after the `load`. It takes one `error` argument. If you use autoloading without specifying this handler, and an error happens during load, an error will be thrown.
 * `afterSerialization` (optional): hook you can use to transform data after it was serialized and before it is written to disk. Can be used for example to encrypt data before writing datastore to disk. This function takes a string as parameter (one line of an NestDB data file) and outputs the transformed string, **which must absolutely not contain a `\n` character** (or data will be lost).
 * `beforeDeserialization` (optional): inverse of `afterSerialization`. Make sure to include both and not just one or you risk data loss. For the same reason, make sure both functions are inverses of one another. Some failsafe mechanisms are in place to prevent data loss if you misuse the serialization hooks: NestDB checks that never one is declared without the other, and checks that they are reverse of one another by testing on random strings of various lengths. In addition, if too much data is detected as corrupt, NestDB will refuse to start as it could mean you're not using the deserialization hook corresponding to the serialization hook used before (see below).
 * `corruptAlertThreshold` (optional): between 0 (0%) and 1 (100%), defaults to 0.1 (10%). NestDB will refuse to start if more than this percentage of the datafile is corrupt. 0 means you don't tolerate any corruption, 1 means you don't care.
 * `compareStrings` (optional): `function compareStrings(a, b)` should compare strings `a` and `b` and must return `-1`, `0` or `1`. If specified, it overrides default string comparison (`===`), which is not well adapted to non-US characters such as accented or diacritical letters. Using the native `String.prototype.localeCompare` will be the right choice most of the time.
 
-If you use a persistent datastore without the `autoload` option, you need to call `loadDatabase` manually.
+If you use a persistent datastore without the `autoload` option, you need to call `load` manually.
 This function fetches the data from datafile and prepares the datastore. **Do NOT forget it!** If you use a
-persistent datastore, no command (e.g. `insert`, `find`, `update`, `remove`) will be executed before `loadDatabase`
+persistent datastore, no command (e.g. `insert`, `find`, `update`, `remove`) will be executed before `load`
 is called, so make sure to either call it yourself or use the `autoload` option.
 
-Also, if `loadDatabase` fails, all commands registered to the executor afterwards will not be executed. They will be registered and executed, in sequence, only after a successful `loadDatabase`.
+Also, if `load` fails, all commands registered to the executor afterwards will not be executed. They will be registered and executed, in sequence, only after a successful `load`.
 
 Once the datastore is fully loaded, it also emits a `"loaded"` event that you can add a listener for.
 
@@ -71,7 +70,7 @@ var Datastore = require('nestdb')
 ```js
 var Datastore = require('nestdb')
   , db = new Datastore({ filename: 'path/to/datafile' });
-db.loadDatabase(function (err) {    // Callback is optional
+db.load(function (err) {    // Callback is optional
   // Now commands will be executed
 });
 ```
@@ -94,10 +93,10 @@ db.once('loaded', function (err) {
 });
 ```
 
-#### Type 4: Persistent datastore for a Node Webkit app
+#### Type 4: Persistent datastore for a Node WebKit app
 
 ```js
-// For a Node Webkit app called 'nwtest'
+// For a Node WebKit app called 'nwtest'
 // For example on Linux, the datafile will be ~/.config/nwtest/nestdb-data/something.db
 var Datastore = require('nestdb')
   , path = require('path')
@@ -114,8 +113,8 @@ db.users = new Datastore('path/to/users.db');
 db.robots = new Datastore('path/to/robots.db');
 
 // You need to load each datastore (here we do it manually)
-db.users.loadDatabase();
-db.robots.loadDatabase();
+db.users.load();
+db.robots.load();
 ```
 
 ### Persistence
