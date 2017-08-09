@@ -1,6 +1,6 @@
 {
   "name": "nestdb",
-  "description": "The Javascript Database for Node.js, nwjs, Electron, and the browser",
+  "description": "The JavaScript Database for Node.js, nwjs, Electron, and the browser",
   "version": "2.0.0-alpha.1",
   "license": "MIT",
   "author": {
@@ -21,36 +21,40 @@
     "nested",
     "nestdb",
     "nedb",
-    "newdb",
-    "nedb-core",
     "nedb2",
     "nedb3",
+    "nedb-core",
+    "newdb",
     "mongo-lite",
     "mongodb-lite"
   ],
-  "homepage": "https://github.com/JamesMGreene/nestdb",
+  "homepage": "https://www.npmjs.com/package/nestdb",
   "repository": {
     "type": "git",
     "url": "git@github.com:JamesMGreene/nestdb.git"
   },
   "main": "index.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha --reporter spec --timeout 10000"
+    "build": "node browser-version/build.js",
+    "test": "mocha --reporter spec --timeout 10000"
   },
   "dependencies": {
-    "async": "0.2.10",
-    "binary-search-tree": "0.2.5",
-    "localforage": "^1.3.0",
-    "mkdirp": "~0.5.1",
+    "async": "^1.5.2",
+    "binary-search-tree": "^0.2.6",
+    "localforage": "^1.5.0",
+    "mkdirp": "^0.5.1",
     "underscore": "~1.4.4"
   },
   "devDependencies": {
-    "chai": "^3.2.0",
-    "mocha": "1.4.x",
-    "request": "2.9.x",
-    "sinon": "1.3.x",
-    "exec-time": "0.0.2",
-    "commander": "1.1.1"
+    "bower": "^1.8.0",
+    "browserify": "^14.4.0",
+    "chai": "^4.1.1",
+    "commander": "^2.11.0",
+    "exec-time": "^0.0.4",
+    "fs-extra": "^4.0.1",
+    "get-stream": "^3.0.0",
+    "mocha": "^3.5.0",
+    "uglify-js": "^3.0.27"
   },
   "browser": {
     "./lib/customUtils.js": "./browser-version/browser-specific/lib/customUtils.js",

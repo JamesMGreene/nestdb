@@ -7,14 +7,9 @@ var customUtils = require('../lib/customUtils')
   , path = require('path')
   , Datastore = require('../lib/datastore')
   , Persistence = require('../lib/persistence')
-  , executeAsap   // process.nextTick or setImmediate depending on your Node version
+  , async = require('async')
+  , executeAsap = async.setImmediate
   ;
-
-try {
-  executeAsap = setImmediate;
-} catch (e) {
-  executeAsap = process.nextTick;
-}
 
 
 /**

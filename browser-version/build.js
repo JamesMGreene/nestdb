@@ -2,14 +2,17 @@
  * Build the browser version of NestDB
  */
 
-var fs = require('fs')
-  , path = require('path')
+var path = require('path')
+  , fs = require('fs-extra')
   , child_process = require('child_process')
+  , async = require('async')
+  , browserify = require('browserify')
+  , getStream = require('get-stream')
+  , uglify = require('uglify-js')
   , toCopy = ['lib', 'node_modules']
-  , async, browserify, uglify
   ;
 
-// Ensuring both node_modules (the source one and build one), src and out directories exist
+// Ensuring "node_modules", "src", and "out" directories exist
 function ensureDirExists (name) {
   try {
     fs.mkdirSync(path.join(__dirname, name));
@@ -20,82 +23,77 @@ function ensureDirExists (name) {
     }
   }
 }
+
 ensureDirExists('../node_modules');
-ensureDirExists('node_modules');
 ensureDirExists('out');
 ensureDirExists('src');
 
 
-// Installing build dependencies and require them
-console.log("Installing build dependencies");
-child_process.exec('npm install', { cwd: __dirname }, function (err, stdout, stderr) {
-  if (err) { console.log("Error reinstalling dependencies"); process.exit(1); }
+async.waterfall(
+  [
+    function (cb) {
+      console.log("Installing NPM dependencies if needed");
 
-  fs = require('fs-extra');
-  async = require('async');
-  browserify = require('browserify');
-  uglify = require('uglify-js');
-
-  async.waterfall([
-  function (cb) {
-    console.log("Installing source dependencies if needed");
-
-    child_process.exec('npm install', { cwd: path.join(__dirname, '..') }, function (err) { return cb(err); });
-  }
+      child_process.exec('npm install', { cwd: path.join(__dirname, '..') }, function (err) { return cb(err); });
+    }
   , function (cb) {
-    console.log("Removing contents of the src directory");
+      console.log("Installing Bower dependencies if needed");
 
-    async.eachSeries(fs.readdirSync(path.join(__dirname, 'src')), function (item, _cb) {
-      fs.remove(path.join(__dirname, 'src', item), _cb);
-    }, cb);
-  }
+      child_process.exec('bower install', { cwd: __dirname }, function(err) { return cb(err); });
+    }
   , function (cb) {
-    console.log("Copying source files");
+      console.log("Removing contents of the src directory");
 
-    async.eachSeries(toCopy, function (item, _cb) {
-      fs.copy(path.join(__dirname, '..', item), path.join(__dirname, 'src', item), _cb);
-    }, cb);
-  }
+      async.eachSeries(fs.readdirSync(path.join(__dirname, 'src')), function (item, _cb) {
+        fs.remove(path.join(__dirname, 'src', item), _cb);
+      }, cb);
+    }
   , function (cb) {
-    console.log("Copying browser specific files to replace their server-specific counterparts");
+      console.log("Copying source files");
 
-    async.eachSeries(fs.readdirSync(path.join(__dirname, 'browser-specific')), function (item, _cb) {
-      fs.copy(path.join(__dirname, 'browser-specific', item), path.join(__dirname, 'src', item), _cb);
-    }, cb);
-  }
+      async.eachSeries(toCopy, function (item, _cb) {
+        fs.copy(path.join(__dirname, '..', item), path.join(__dirname, 'src', item), _cb);
+      }, cb);
+    }
   , function (cb) {
-    console.log("Browserifying the code");
+      console.log("Copying browser specific files to replace their server-specific counterparts");
 
-    var b = browserify()
-      , srcPath = path.join(__dirname, 'src/lib/datastore.js');
+      async.eachSeries(fs.readdirSync(path.join(__dirname, 'browser-specific')), function (item, _cb) {
+        fs.copy(path.join(__dirname, 'browser-specific', item), path.join(__dirname, 'src', item), _cb);
+      }, cb);
+    }
+  , function (cb) {
+      console.log("Browserifying the code");
 
-    b.add(srcPath);
-    b.bundle({ standalone: 'NestDB' }, function (err, out) {
-      if (err) { return cb(err); }
-      fs.writeFile(path.join(__dirname, 'out/nestdb.js'), out, 'utf8', function (err) {
-        if (err) {
-          return cb(err);
-        } else {
-          return cb(null, out);
-        }
-      });
-    });
-  }
+      var srcPath = path.join(__dirname, 'src/lib/datastore.js')
+        , bundleStream = browserify(srcPath, { standalone: 'NestDB' }).bundle()
+        ;
+
+        return getStream(bundleStream)
+          .then(function (out) {
+            fs.writeFile(path.join(__dirname, 'out/nestdb.js'), out, 'utf8', function (err) {
+              if (err) {
+                return cb(err);
+              } else {
+                return cb(null, out);
+              }
+            });
+          })
+          .catch(cb);
+    }
   , function (out, cb) {
       console.log("Creating the minified version");
 
-      var compressedCode = uglify.minify(out, { fromString: true });
+      var compressedCode = uglify.minify(out);
       fs.writeFile(path.join(__dirname, 'out/nestdb.min.js'), compressedCode.code, 'utf8', cb);
-  }
-  ], function (err) {
+    }
+  ],
+  function (err) {
     if (err) {
       console.log("Error during build");
       console.log(err);
     } else {
       console.log("Build finished with success");
     }
-  });
-});
-
-
-
+  }
+);

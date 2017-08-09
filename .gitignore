@@ -17,6 +17,7 @@ node_modules
 
 browser-version/src
 browser-version/node_modules
+browser-version/test/vendor
 
 *.swp
 *~

@@ -23,7 +23,7 @@ function testThrowInCallback (d, done) {
   });
 
   d.find({}, function (err) {
-    process.nextTick(function () {
+    async.setImmediate(function () {
       d.insert({ bar: 1 }, function (err) {
         process.removeAllListeners('uncaughtException');
         for (var i = 0; i < currentUncaughtExceptionHandlers.length; i += 1) {
@@ -41,15 +41,15 @@ function testThrowInCallback (d, done) {
 // Test that if the callback is falsy, the next DB operations will still be executed
 function testFalsyCallback (d, done) {
   d.insert({ a: 1 }, null);
-  process.nextTick(function () {
+  async.setImmediate(function () {
     d.update({ a: 1 }, { a: 2 }, {}, null);
-    process.nextTick(function () {
+    async.setImmediate(function () {
       d.update({ a: 2 }, { a: 1 }, null);
-      process.nextTick(function () {
+      async.setImmediate(function () {
         d.remove({ a: 2 }, {}, null);
-        process.nextTick(function () {
+        async.setImmediate(function () {
           d.remove({ a: 2 }, null);
-          process.nextTick(function () {
+          async.setImmediate(function () {
             d.find({}, done);
           });
         });
@@ -77,7 +77,7 @@ function testRightOrder (d, done) {
         d.find({}, function (err, docs) {
           docs[0].a.should.equal(2);
 
-          process.nextTick(function () {
+          async.setImmediate(function () {
             d.update({ a: 2 }, { a: 3 }, {}, function () {
               d.find({}, function (err, docs) {
                 docs[0].a.should.equal(3);
