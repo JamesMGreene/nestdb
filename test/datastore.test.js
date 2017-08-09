@@ -12,7 +12,7 @@ var should = require('chai').should()
   ;
 
 
-describe('Database', function () {
+describe('Datastore', function () {
   var d;
 
   beforeEach(function (done) {
@@ -40,11 +40,98 @@ describe('Database', function () {
     ], done);
   });
 
-  it( 'should contain all expected EventEmitter methods', function() {
-    var expectedProperties = [ 'emit', 'on', 'once', 'listeners', 'removeListener', 'removeAllListeners' ];
+  it('should contain all expected EventEmitter methods', function () {
+    var expectedProperties = ['emit', 'on', 'once', 'listeners', 'removeListener', 'removeAllListeners'];
+    expectedProperties.forEach(function (prop) {
+      assert.isOk(Datastore[prop]);
+      Datastore[prop].should.be.a('function');
+    });
+  });
+
+  describe('should emit static "created" events', function () {
+
+    it('when creating a new in-memory datastore', function (done) {
+      var db;
+      Datastore.once('created', function (dbRef) {
+        // Assert on outside scope
+        assert.isOk(db);
+
+        Datastore.should.equal(this);
+        arguments.length.should.equal(1);
+
+        assert.isOk(dbRef);
+        dbRef.should.equal(db);
+        dbRef.should.be.an.instanceof(Datastore);
+
+        done();
+      });
+
+      db = new Datastore({ inMemoryOnly: true, autoload: true });
+    });
+
+    it('when creating a new persistent datastore', function (done) {
+      var dbFilePath = 'workspace/brandNewSource.db'
+        , dbExists
+        , db;
+
+      Datastore.once('created', function (dbRef) {
+        // Assert on outside scope
+        assert.isOk(db);
+
+        Datastore.should.equal(this);
+        arguments.length.should.equal(1);
+
+        assert.isOk(dbRef);
+        dbRef.should.equal(db);
+        dbRef.should.be.an.instanceof(Datastore);
+
+        // Cleanup
+        dbRef.destroy(done);
+      });
+
+      // Verify pre-condition
+      dbExists = fs.existsSync(dbFilePath);
+      if (dbExists) {
+        fs.unlinkSync(dbFilePath);
+        dbExists = fs.existsSync(dbFilePath);
+      }
+      dbExists.should.equal(false);
+
+      db = new Datastore({ filename: dbFilePath, autoload: true });
+    });
+
+    it('when loading an existing persistent datastore', function (done) {
+      var dbFilePath = d.filename
+        , db;
+
+      Datastore.once('created', function (dbRef) {
+        // Assert on outside scope
+        assert.isOk(db);
+
+        Datastore.should.equal(this);
+        arguments.length.should.equal(1);
+
+        assert.isOk(dbRef);
+        dbRef.should.equal(db);
+        dbRef.should.be.an.instanceof(Datastore);
+
+        // Do not destroy it since it is an existing file
+        done();
+      });
+
+      // Verify pre-condition
+      fs.existsSync(dbFilePath).should.equal(true);
+
+      db = new Datastore({ filename: dbFilePath, autoload: true });
+    });
+
+  });
+
+  it('instances should contain all expected EventEmitter methods', function () {
+    var expectedProperties = ['emit', 'on', 'once', 'listeners', 'removeListener', 'removeAllListeners'];
     expectedProperties.forEach(function (prop) {
       assert.isOk(d[prop]);
-      d[prop].should.be.a( 'function' );
+      d[prop].should.be.a('function');
     });
   });
 
@@ -3038,6 +3125,66 @@ describe('Database', function () {
         done();
       });
       d.destroy();
+    });
+
+  });
+
+
+  describe('should emit static "destroyed" events', function () {
+
+    it('when destroying an in-memory datastore', function (done) {
+      var db;
+      Datastore.once('destroyed', function (dbRef) {
+        // Assert on outside scope
+        assert.isOk(db);
+
+        Datastore.should.equal(this);
+        arguments.length.should.equal(1);
+
+        assert.isOk(dbRef);
+        dbRef.should.equal(db);
+        dbRef.should.be.an.instanceof(Datastore);
+
+        done();
+      });
+
+      db = new Datastore({ inMemoryOnly: true
+                         , autoload: true
+                         , onload: function (err) { if (err) { return done(err); } db.destroy(); }
+                        });
+    });
+
+    it('when destroying a persistent datastore', function (done) {
+      var dbFilePath = 'workspace/destroyMe.db'
+        , dbExists
+        , db;
+
+      Datastore.once('destroyed', function (dbRef) {
+        // Assert on outside scope
+        assert.isOk(db);
+
+        Datastore.should.equal(this);
+        arguments.length.should.equal(1);
+
+        assert.isOk(dbRef);
+        dbRef.should.equal(db);
+        dbRef.should.be.an.instanceof(Datastore);
+
+        done();
+      });
+
+      // Verify pre-condition
+      dbExists = fs.existsSync(dbFilePath);
+      if (dbExists) {
+        fs.unlinkSync(dbFilePath);
+        dbExists = fs.existsSync(dbFilePath);
+      }
+      dbExists.should.equal(false);
+
+      db = new Datastore({ filename: dbFilePath
+                         , autoload: true
+                         , onload: function (err) { if (err) { return done(err); } db.destroy(); }
+                        });
     });
 
   });

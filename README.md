@@ -57,6 +57,8 @@ Also, if `load` fails, all commands registered to the executor afterwards will n
 
 Once the datastore is fully loaded, it also emits a `"loaded"` event that you can add a listener for.
 
+Whenever any datastore is fully loaded, the `Datastore` object itself emits a global `"created"` event that you can add a listener for.
+
 #### Type 1: In-memory only datastore (no need to load)
 
 ```js
@@ -125,11 +127,25 @@ db.once('loaded', function () {
 });
 ```
 
+#### Listening for the global "created" event
+
+```js
+var Datastore = require('nestdb')
+  , db;
+
+Datastore.on('created', function (dbRef) {
+  // dbRef === db
+  console.log('Created or loaded a datastore: ' + (dbRef.filename || 'in-memory'));
+});
+
+db = new Datastore({ filename: 'path/to/datafile', autoload: true });
+```
+
 #### Loading multiple datastores
 
 ```js
-// Of course you can create multiple datastores if you need several
-// collections. In this case it's usually a good idea to use autoload for all collections.
+// Of course you can create multiple datastores if you need several collections.
+// In this case, it is best to use autoload for all -- unlike this example!
 db = {};
 db.users = new Datastore('path/to/users.db');
 db.robots = new Datastore('path/to/robots.db');
@@ -694,6 +710,8 @@ Destroying a datastore will:
 
 Once the datastore is fully destroyed, it also emits a `"destroyed"` event that you can add a listener for.
 
+Whenever any datastore is fully destroyed, the `Datastore` object itself emits a global `"destroyed"` event that you can add a listener for.
+
 #### Type 1: In-memory only datastore
 
 ```js
@@ -730,6 +748,21 @@ var Datastore = require('nestdb')
 // This event will not be emitted if an error occurs during destroying
 db.once('destroyed', function () {
   console.log('Destroyed the datastore!');
+});
+
+db.destroy();
+```
+
+#### Listening for the global "destroyed" event
+
+```js
+var Datastore = require('nestdb')
+  , db = new Datastore({ filename: 'path/to/datafile', autoload: true });
+// You can issue commands right away because of NestDB's internal queueing
+
+Datastore.on('destroyed', function (dbRef) {
+  // dbRef === db
+  console.log('Destroyed a datastore: ' + (dbRef.filename || 'in-memory'));
 });
 
 db.destroy();

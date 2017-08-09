@@ -36,7 +36,7 @@
   "main": "index.js",
   "scripts": {
     "build": "node browser-version/build.js",
-    "test": "mocha --reporter spec --timeout 10000"
+    "test": "mocha"
   },
   "dependencies": {
     "async": "^1.5.2",

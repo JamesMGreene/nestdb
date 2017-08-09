@@ -298,19 +298,6 @@ var customUtils = require('./customUtils')
   ;
 
 
-
-/**
- * Abstract Datastore implementation in order to provide `EventEmitter` capabilities to the static `Datastore` object
- * @abstract
- * @private
- */
-function AbstractDatastore() {
-  EventEmitter.call(this);
-}
-
-util.inherits(AbstractDatastore, EventEmitter);
-
-
 /**
  * Create a new collection
  *
@@ -323,28 +310,38 @@ util.inherits(AbstractDatastore, EventEmitter);
  * @param {Number} options.corruptAlertThreshold Optional, threshold after which an alert is thrown if too much data is corrupt
  * @param {Function} options.compareStrings Optional, string comparison function that overrides default for sorting
  *
+ * @fires Datastore.created
  * @fires Datastore#loaded
  * @fires Datastore#compacted
  * @fires Datastore#destroyed
+ * @fires Datastore.destroyed
  *
  * Event Emitter
+ *  - Static Events
+ *      - "created": Emitted whenever a Datastore is fully loaded OR newly created
+ *          - callback:  function(db) { ... }
+ *          - context:   Datastore
+ *      - "destroyed": Emitted whenever a Datastore is fully destroyed
+ *          - callback:  function(db) { ... }
+ *          - context:   Datastore
+ *
  *  - Instance Events
  *      - "loaded": Emitted when this Datastore is fully loaded
  *          - callback:  function() { ... }
- *          - context:   this
+ *          - context:   this (a.k.a. `db`)
  *      - "compacted": Emitted whenever a compaction operation is completed for this Datastore
  *          - callback:  function() { ... }
- *          - context:   this
+ *          - context:   this (a.k.a. `db`)
  *      - "destroyed": Emitted when this Datastore is fully destroyed
  *          - callback:  function() { ... }
- *          - context:   this
+ *          - context:   this (a.k.a. `db`)
  */
 function Datastore(options) {
   if ( !(this instanceof Datastore) ) {
     return new Datastore(options);
   }
 
-  AbstractDatastore.call(this);
+  EventEmitter.call(this);
 
   options = options || {};
   var filename = options.filename;
@@ -389,12 +386,26 @@ function Datastore(options) {
   }
 }
 
-util.inherits(Datastore, AbstractDatastore);
+util.inherits(Datastore, EventEmitter);
+
+
+//
+// Also forcibly alter the Datastore (NeDB) object itself to be a static EventEmitter
+//
+EventEmitter.call(Datastore);
+
+Object.keys(EventEmitter.prototype)
+  .forEach(function (key) {
+    if (typeof EventEmitter.prototype[key] === 'function') {
+      Datastore[key] = EventEmitter.prototype[key].bind(Datastore);
+    }
+  });
 
 
 /**
  * Load the database from the datafile, and trigger the execution of buffered commands if any
  *
+ * @fires Datastore.created
  * @fires Datastore#loaded
  */
 Datastore.prototype.load = function (cb) {
@@ -404,6 +415,9 @@ Datastore.prototype.load = function (cb) {
         async.setImmediate(function () {
           if (!err) {
             // Ensure there are listeners registered before making any unnecessary function calls to `emit`
+            if (self.constructor.listeners('created').length > 0) {
+              self.constructor.emit('created', self);
+            }
             if (self.listeners('loaded').length > 0) {
               self.emit('loaded');
             }
@@ -414,6 +428,7 @@ Datastore.prototype.load = function (cb) {
 
   this.executor.push({ this: this.persistence, fn: this.persistence.loadDatabase, arguments: [eventedCallback] }, true);
 };
+
 
 /**
  * Backward compatibility with NeDB
@@ -1076,6 +1091,7 @@ Datastore.prototype._destroy = function (cb) {
  * @param {Function} cb Optional callback, signature: err
  *
  * @fires Datastore#destroyed
+ * @fires Datastore.destroyed
  */
 Datastore.prototype.destroy = function (cb) {
   var self = this
@@ -1086,6 +1102,9 @@ Datastore.prototype.destroy = function (cb) {
             // Ensure there are listeners registered before making any unnecessary function calls to `emit`
             if (self.listeners('destroyed').length > 0) {
               self.emit('destroyed');
+            }
+            if (self.constructor.listeners('destroyed').length > 0) {
+              self.constructor.emit('destroyed', self);
             }
           }
           callback(err);
