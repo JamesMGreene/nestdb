@@ -79,17 +79,24 @@ db.load(function (err) {    // Callback is optional
 
 ```js
 var Datastore = require('nestdb')
-  , db = new Datastore({ filename: 'path/to/datafile', autoload: true });
+  , db = new Datastore({
+          filename: 'path/to/datafile'
+        , autoload: true
+        , onload: function (err) {
+            if (err) {
+              console.error('Failed to load the datastore:', err);
+            } else {
+              console.log('Loaded the datastore!');
+            }
+          }
+         });
 // You can issue commands right away because of NestDB's internal queueing
 
 // You can also synchronously add an event listener for the 'loaded' event
 // If not added synchronously, you will probably miss the event
-db.once('loaded', function (err) {
-  if (err) {
-    console.error('Failed to load datastore:', err);
-  } else {
-    console.log('Loaded the datastore!');
-  }
+// This event will not be emitted if an error occurs during loading
+db.once('loaded', function () {
+  console.log('Loaded the datastore!');
 });
 ```
 
@@ -103,7 +110,22 @@ var Datastore = require('nestdb')
   , db = new Datastore({ filename: path.join(require('nw.gui').App.dataPath, 'something.db') });
 ```
 
-#### Multiple datastores
+#### Loading a datastore with an event listener
+
+```js
+var Datastore = require('nestdb')
+  , db = new Datastore({ filename: 'path/to/datafile', autoload: true });
+// You can issue commands right away because of NestDB's internal queueing
+
+// You can also synchronously add an event listener for the 'loaded' event
+// If not added synchronously, you will probably miss the event
+// This event will not be emitted if an error occurs during loading
+db.once('loaded', function () {
+  console.log('Loaded the datastore!');
+});
+```
+
+#### Loading multiple datastores
 
 ```js
 // Of course you can create multiple datastores if you need several
@@ -705,12 +727,9 @@ var Datastore = require('nestdb')
   , db = new Datastore({ filename: 'path/to/datafile', autoload: true });
 // You can issue commands right away because of NestDB's internal queueing
 
-db.once('destroyed', function (err) {
-  if (err) {
-    console.error('Failed to destroy datastore:', err);
-  } else {
-    console.log('Destroyed the datastore!');
-  }
+// This event will not be emitted if an error occurs during destroying
+db.once('destroyed', function () {
+  console.log('Destroyed the datastore!');
 });
 
 db.destroy();

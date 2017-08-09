@@ -98,11 +98,10 @@ describe('Database', function () {
         var db = new Datastore({ inMemoryOnly: true, autoload: true });
 
         // Prepare to Assert
-        db.once('loaded', function (err) {
-          if (!err) {
-            db.should.equal(this);
-          }
-          done(err);
+        db.once('loaded', function () {
+          db.should.equal(this);
+          arguments.length.should.equal(0);
+          done();
         });
       });
 
@@ -111,11 +110,10 @@ describe('Database', function () {
         var db = new Datastore({ filename: testDb, autoload: true });
 
         // Prepare to Assert
-        db.once('loaded', function (err) {
-          if (!err) {
-            db.should.equal(this);
-          }
-          done(err);
+        db.once('loaded', function () {
+          db.should.equal(this);
+          arguments.length.should.equal(0);
+          done();
         });
       });
 
@@ -128,11 +126,10 @@ describe('Database', function () {
         var db = new Datastore({ inMemoryOnly: true, autoload: false });
 
         // Prepare to Assert
-        db.once('loaded', function (err) {
-          if (!err) {
-            db.should.equal(this);
-          }
-          done(err);
+        db.once('loaded', function () {
+          db.should.equal(this);
+          arguments.length.should.equal(0);
+          done();
         });
 
         // Act
@@ -144,11 +141,10 @@ describe('Database', function () {
         var db = new Datastore({ filename: testDb, autoload: false });
 
         // Prepare to Assert
-        db.once('loaded', function (err) {
-          if (!err) {
-            db.should.equal(this);
-          }
-          done(err);
+        db.once('loaded', function () {
+          db.should.equal(this);
+          arguments.length.should.equal(0);
+          done();
         });
 
         // Act
@@ -3036,8 +3032,9 @@ describe('Database', function () {
     });
 
     it('should emit "destroyed" event', function (done) {
-      d.once('destroyed', function (err) {
-        assert.isNull(err);
+      d.once('destroyed', function () {
+        d.should.equal(this);
+        arguments.length.should.equal(0);
         done();
       });
       d.destroy();

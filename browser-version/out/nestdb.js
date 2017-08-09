@@ -298,6 +298,19 @@ var customUtils = require('./customUtils')
   ;
 
 
+
+/**
+ * Abstract Datastore implementation in order to provide `EventEmitter` capabilities to the static `Datastore` object
+ * @abstract
+ * @private
+ */
+function AbstractDatastore() {
+  EventEmitter.call(this);
+}
+
+util.inherits(AbstractDatastore, EventEmitter);
+
+
 /**
  * Create a new collection
  *
@@ -316,14 +329,14 @@ var customUtils = require('./customUtils')
  *
  * Event Emitter
  *  - Instance Events
- *      - "loaded": Emitted when this Datastore is fully loaded (or errs and fails to load)
- *          - callback:  function( err ) { ... }
+ *      - "loaded": Emitted when this Datastore is fully loaded
+ *          - callback:  function() { ... }
  *          - context:   this
  *      - "compacted": Emitted whenever a compaction operation is completed for this Datastore
  *          - callback:  function() { ... }
  *          - context:   this
- *      - "destroyed": Emitted when this Datastore is fully destroyed (or errs and fails to destroy)
- *          - callback:  function( err ) { ... }
+ *      - "destroyed": Emitted when this Datastore is fully destroyed
+ *          - callback:  function() { ... }
  *          - context:   this
  */
 function Datastore(options) {
@@ -331,7 +344,7 @@ function Datastore(options) {
     return new Datastore(options);
   }
 
-  EventEmitter.call(this);
+  AbstractDatastore.call(this);
 
   options = options || {};
   var filename = options.filename;
@@ -376,7 +389,7 @@ function Datastore(options) {
   }
 }
 
-util.inherits(Datastore, EventEmitter);
+util.inherits(Datastore, AbstractDatastore);
 
 
 /**
@@ -389,9 +402,11 @@ Datastore.prototype.load = function (cb) {
     , callback = cb || function (err) { if (err) { throw err; } }
     , eventedCallback = function (err) {
         async.setImmediate(function () {
-          // Ensure there are listeners registered before making any unnecessary function calls to `emit`
-          if (self.listeners('loaded').length > 0) {
-            self.emit('loaded', err);
+          if (!err) {
+            // Ensure there are listeners registered before making any unnecessary function calls to `emit`
+            if (self.listeners('loaded').length > 0) {
+              self.emit('loaded');
+            }
           }
           callback(err);
         });
@@ -1067,9 +1082,11 @@ Datastore.prototype.destroy = function (cb) {
     , callback = cb || function () {}
     , eventedCallback = function (err) {
         async.setImmediate(function () {
-          // Ensure there are listeners registered before making any unnecessary function calls to `emit`
-          if (self.listeners('destroyed').length > 0) {
-            self.emit('destroyed', err);
+          if (!err) {
+            // Ensure there are listeners registered before making any unnecessary function calls to `emit`
+            if (self.listeners('destroyed').length > 0) {
+              self.emit('destroyed');
+            }
           }
           callback(err);
         });
