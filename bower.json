@@ -11,7 +11,7 @@
     "type": "git",
     "url": "git://github.com/JamesMGreene/nestdb.git"
   },
-  "ignore": ["benchmarks", "lib", "test", "test_lac"],
+  "ignore": ["benchmarks", "lib", "test", "test_lac", "workspace"],
   "main": ["browser-version/out/nestdb.js"],
   "moduleType": ["globals", "amd", "node"],
   "license": "MIT"
