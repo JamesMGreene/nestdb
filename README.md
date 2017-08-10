@@ -1,4 +1,5 @@
 # NestDB
+[![GitHub Latest Release](https://badge.fury.io/gh/JamesMGreene%2Fnestdb.svg)](https://github.com/JamesMGreene/nestdb) [![Build Status](https://secure.travis-ci.org/JamesMGreene/nestdb.svg?branch=master)](https://travis-ci.org/JamesMGreene/nestdb) ![GZip Size](https://badge-size.herokuapp.com/JamesMGreene/nestdb/master/browser-version/out/nestdb.min.js?compression=gzip) [![Coverage Status](https://coveralls.io/repos/JamesMGreene/nestdb/badge.svg?branch=master)](https://coveralls.io/r/JamesMGreene/nestdb?branch=master) [![Dependency Status](https://david-dm.org/JamesMGreene/nestdb.svg?theme=shields.io)](https://david-dm.org/JamesMGreene/nestdb) [![Dev Dependency Status](https://david-dm.org/JamesMGreene/nestdb/dev-status.svg?theme=shields.io)](https://david-dm.org/JamesMGreene/nestdb#info=devDependencies)
 
 ## The Node.js Embedded JavaScript Database
 
