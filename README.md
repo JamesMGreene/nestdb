@@ -7,14 +7,26 @@
 **IMPORTANT NOTE**: Please don't submit issues for questions regarding your code. Only actual bugs or feature requests will be answered, all others will be closed without comment. Also, please follow the <a href="#bug-reporting-guidelines">bug reporting guidelines</a> and check the <a href="https://github.com/louischatriot/nedb/wiki/Change-log" target="_blank">change log</a> before submitting an already fixed bug :)
 
 
-## Installation, tests
-Module name on npm and bower is `nestdb`.
+## Installation
 
+### Node.js version via NPM
+
+```shell
+$ npm install nestdb --save
 ```
-npm install nestdb --save    # Put latest version in your package.json
-npm test                     # You'll need the dev dependencies to launch tests
-bower install nestdb         # For the browser versions, which will be in browser-version/out
+
+### Node.js version via Yarn
+
+```shell
+$ yarn add nedb
 ```
+
+### Browser version via Bower
+
+```shell
+$ bower install nestdb --save    # Main files under "./browser-version/out/"
+```
+
 
 ## API
 It is a subset of MongoDB's API (the most used operations).
