@@ -1,0 +1,33 @@
+# Git config
+.gitignore
+
+# Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
+.grunt
+Gruntfile.js
+
+# Travis CI config
+.travis.yml
+
+# JSHint config
+.jshintrc
+.jshintignore
+
+# Docs/Tests/Specs
+docs/
+test/
+spec/
+test_lac/
+benchmarks/
+workspace/
+
+# Coverage
+src-cov/
+lib-cov/
+coverage/
+
+# OS-specific hidden files
+.DS_Store
+
+# Browser-specific files
+browser-version/
+bower.json
