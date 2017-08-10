@@ -1,0 +1,19 @@
+language: node_js
+
+node_js:
+  - "8"
+  - "6"
+  - "4"
+  - "0.12"
+
+cache:
+  directories:
+    - node_modules
+
+install:
+  - npm install -g npm@latest
+  - npm install
+
+script:
+  - npm test
+  - npm run build
