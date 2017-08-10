@@ -294,7 +294,7 @@ var customUtils = require('./customUtils')
   , _ = require('underscore')
   , Persistence = require('./persistence')
   , Cursor = require('./cursor')
-  , EventEmitter = require('events').EventEmitter
+  , EventEmitter = require('events')
   ;
 
 
