@@ -1,6 +1,18 @@
 {
-"name": "nestdb",
-"description": "The Javascript Database for Node.js, nwjs, Electron and the browser",
-"ignore": ["benchmarks", "lib", "test", "test_lac"],
-"main": ["browser-version/nestdb.js", "browser-version/nestdb.min.js"]
+  "name": "nestdb",
+  "description": "The JavaScript Database for Node.js, nwjs, Electron, and the browser",
+  "authors": [
+    {
+      "name": "James M. Greene",
+      "email": "james.m.greene@gmail.com"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/JamesMGreene/nestdb.git"
+  },
+  "ignore": ["benchmarks", "lib", "test", "test_lac"],
+  "main": ["browser-version/out/nestdb.js"],
+  "moduleType": ["globals", "amd", "node"],
+  "license": "MIT"
 }
