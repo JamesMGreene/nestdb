@@ -171,7 +171,7 @@ db.robots.load();
 ### Persistence
 Under the hood, NestDB's persistence uses an append-only format, meaning that all updates and deletes actually result in lines added at the end of the datafile, for performance reasons. The datastore is automatically compacted (i.e. put back in the one-line-per-document format) every time you load each datastore within your application.
 
-You can manually call the compaction function with `yourDatastore.persistence.compactDatafile` which takes no argument. It queues a compaction of the datafile in the executor, to be executed sequentially after all pending operations. The datastore will fire a `"compacted"` event once compaction is finished.
+You can manually call the compaction function with `yourDatastore.persistence.compactDatafile(cb)`, where callback is optional and get passed an error if any. It queues a compaction of the datafile in the executor, to be executed sequentially after all pending operations. The datastore will also fire a `"compacted"` event whenever a compaction process is finished.
 
 You can also set automatic compaction at regular intervals with `yourDatastore.persistence.setAutocompactionInterval(interval)`, `interval` in milliseconds (a minimum of 5s is enforced), and stop automatic compaction with `yourDatastore.persistence.stopAutocompaction()`.
 

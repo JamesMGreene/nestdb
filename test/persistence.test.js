@@ -299,6 +299,10 @@ describe('Persistence', function () {
     });
   });
 
+  it("Can pass callback to manual compaction", function (done) {
+    d.persistence.compactDatafile(done);
+  });
+
   it("Can listen to compaction events", function (done) {
     d.on('compacted', function () {
       d.removeAllListeners('compacted');   // Tidy up for next tests
