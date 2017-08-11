@@ -10,10 +10,16 @@ cache:
   directories:
     - node_modules
 
+# Prevent Node 0.12 from installing the latest NPM as it is not compatible
 install:
-  - npm install -g npm@latest
+  - |
+    if [ $(node -e "var major = process.version.replace(/^v?(\d+)\..+$/, '$1'); process.exit(parseInt(major, 10) !== 0 ? 0 : 1);") ]; then
+      npm install -g npm@latest
+    fi
   - npm install
 
 script:
   - npm test
   - npm run build
+
+sudo: false
