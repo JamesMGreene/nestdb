@@ -4,28 +4,17 @@ node_js:
   - "8"
   - "6"
   - "4"
-  - "0.12"
 
 cache:
   directories:
     - node_modules
 
-# Node 0.12 is not capable of running the latest NPM, nor of running our custom build
-env:
-  - USING_MODERN_NODE=$(node -e "var major = process.version.replace(/^v?(\d+)\..+$/, '$1'); process.exit(parseInt(major, 10) !== 0 ? 0 : 1);")
-
 install:
-  - |
-    if (( "${USING_MODERN_NODE}" == 0 )); then
-      npm install -g npm@latest
-    fi
+  - npm install -g npm@latest
   - npm install
 
 script:
   - npm test
-  - |
-    if (( "${USING_MODERN_NODE}" == 0 )); then
-      npm run build
-    fi
+  - npm run build
 
 sudo: false
