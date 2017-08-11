@@ -3365,9 +3365,10 @@ describe('Datastore', function () {
 
       it('should work with existing documents', function (done) {
         // Arrange
-        var initFile = storageObj[dbFilePath] = [];
-        initFile.push('{"foo":"man","_id":"3HjUxz18jQTOkStn"}');
-        initFile.push('{"foo":"chu","_id":"4HjUxz18jQTOkStz"}');
+        storageObj[dbFilePath] = [
+          '{"foo":"man","_id":"3HjUxz18jQTOkStn"}'
+        , '{"foo":"chu","_id":"4HjUxz18jQTOkStz"}'
+        ];
 
         assert.isOk(storageObj[dbFilePath]);
         storageObj[dbFilePath].length.should.equal(2);
