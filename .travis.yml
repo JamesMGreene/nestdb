@@ -10,16 +10,22 @@ cache:
   directories:
     - node_modules
 
-# Prevent Node 0.12 from installing the latest NPM as it is not compatible
+# Node 0.12 is not capable of running the latest NPM, nor of running our custom build
+env:
+  - USING_MODERN_NODE=$(node -e "var major = process.version.replace(/^v?(\d+)\..+$/, '$1'); process.exit(parseInt(major, 10) !== 0 ? 0 : 1);")
+
 install:
   - |
-    if [ $(node -e "var major = process.version.replace(/^v?(\d+)\..+$/, '$1'); process.exit(parseInt(major, 10) !== 0 ? 0 : 1);") ]; then
+    if (( "${USING_MODERN_NODE}" == 0 )); then
       npm install -g npm@latest
     fi
   - npm install
 
 script:
   - npm test
-  - npm run build
+  - |
+    if (( "${USING_MODERN_NODE}" == 0 )); then
+      npm run build
+    fi
 
 sudo: false
