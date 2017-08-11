@@ -1,5 +1,5 @@
 /**
- * Way data is stored for this database
+ * How data is stored for this database
  * For a Node.js/Node Webkit database it's the file system
  * For a browser-side database it's localforage, which uses the best backend available (IndexedDB then WebSQL then localStorage)
  *
@@ -7,6 +7,8 @@
  */
 
 var localforage = require('localforage')
+  , storage = {}
+  ;
 
 // Configure localforage to display NestDB name for now. Would be a good idea to let user use his own app name
 localforage.config({
@@ -15,81 +17,51 @@ localforage.config({
 });
 
 
-function exists (filename, callback) {
-  localforage.getItem(filename, function (err, value) {
-    if (value !== null) {   // Even if value is undefined, localforage returns null
-      return callback(true);
-    } else {
-      return callback(false);
-    }
-  });
-}
+// No need for a crash-safe function in the browser
+storage.write = function (filename, contents, callback) {
+  localforage.setItem(filename, contents, callback);
+};
 
 
-function rename (filename, newFilename, callback) {
-  localforage.getItem(filename, function (err, value) {
-    if (value === null) {
-      localforage.removeItem(newFilename, function () { return callback(); });
-    } else {
-      localforage.setItem(newFilename, value, function () {
-        localforage.removeItem(filename, function () { return callback(); });
-      });
-    }
-  });
-}
-
-
-function writeFile (filename, contents, options, callback) {
-  // Options do not matter in browser setup
-  if (typeof options === 'function') { callback = options; }
-  localforage.setItem(filename, contents, function () { return callback(); });
-}
-
-
-function appendFile (filename, toAppend, options, callback) {
-  // Options do not matter in browser setup
-  if (typeof options === 'function') { callback = options; }
-
+storage.append = function (filename, toAppend, callback) {
   localforage.getItem(filename, function (err, contents) {
+    if (err) {
+      return callback(err);
+    }
     contents = contents || '';
     contents += toAppend;
-    localforage.setItem(filename, contents, function () { return callback(); });
+    localforage.setItem(filename, contents, callback);
   });
-}
+};
 
 
-function readFile (filename, options, callback) {
-  // Options do not matter in browser setup
-  if (typeof options === 'function') { callback = options; }
-  localforage.getItem(filename, function (err, contents) { return callback(null, contents || ''); });
-}
+storage.read = function (filename, callback) {
+  localforage.getItem(filename, function (err, contents) {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, contents || '');
+  });
+};
 
 
-function unlink (filename, callback) {
-  localforage.removeItem(filename, function () { return callback(); });
-}
+storage.remove = function (filename, callback) {
+  localforage.removeItem(filename, callback);
+};
 
 
-// Nothing to do, no directories will be used on the browser
-function mkdirp (dir, callback) {
-  return callback();
-}
-
-
-// Nothing to do, no data corruption possible in the brower
-function ensureDatafileIntegrity (filename, callback) {
+// Nothing to do because:
+//  - no data corruption is possible in the browser
+//  - no directory creation is possible in the browser
+//  - no need to initialize an empty "file" for the datastore in the browser
+storage.init = function (filename, callback) {
   return callback(null);
-}
+};
 
 
 // Interface
-module.exports.exists = exists;
-module.exports.rename = rename;
-module.exports.writeFile = writeFile;
-module.exports.crashSafeWriteFile = writeFile;   // No need for a crash safe function in the browser
-module.exports.appendFile = appendFile;
-module.exports.readFile = readFile;
-module.exports.unlink = unlink;
-module.exports.mkdirp = mkdirp;
-module.exports.ensureDatafileIntegrity = ensureDatafileIntegrity;
-
+module.exports.init = storage.init;
+module.exports.read = storage.read;
+module.exports.write = storage.write;
+module.exports.append = storage.append;
+module.exports.remove = storage.remove;

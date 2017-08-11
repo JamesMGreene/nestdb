@@ -5,6 +5,7 @@ var should = require('chai').should()
   , path = require('path')
   , _ = require('underscore')
   , async = require('async')
+  , mkdirp = require('mkdirp')
   , model = require('../lib/model')
   , Datastore = require('../lib/datastore')
   , Persistence = require('../lib/persistence')
@@ -137,7 +138,7 @@ describe('Executor', function () {
 
       async.waterfall([
         function (cb) {
-          Persistence.ensureDirectoryExists(path.dirname(testDb), function () {
+          mkdirp(path.dirname(testDb), function () {
             fs.exists(testDb, function (exists) {
               if (exists) {
                 fs.unlink(testDb, cb);

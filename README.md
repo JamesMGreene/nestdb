@@ -47,6 +47,7 @@ It is a subset of MongoDB's API (the most used operations).
 * <a href="#removing-documents">Removing documents</a>
 * <a href="#indexing">Indexing</a>
 * <a href="#destroying">Destroying a datastore</a>
+* <a href="#using-a-custom-storage-engine">Using a custom storage engine</a>
 
 ### Creating/loading a datastore
 You can use NestDB as an in-memory only datastore or as a persistent datastore. One datastore is the equivalent of a MongoDB collection. The constructor is used as follows `new Datastore(options)` where `options` is an object with the following fields:
@@ -60,6 +61,7 @@ You can use NestDB as an in-memory only datastore or as a persistent datastore. 
 * `beforeDeserialization` (optional): inverse of `afterSerialization`. Make sure to include both and not just one or you risk data loss. For the same reason, make sure both functions are inverses of one another. Some failsafe mechanisms are in place to prevent data loss if you misuse the serialization hooks: NestDB checks that never one is declared without the other, and checks that they are reverse of one another by testing on random strings of various lengths. In addition, if too much data is detected as corrupt, NestDB will refuse to start as it could mean you're not using the deserialization hook corresponding to the serialization hook used before (see below).
 * `corruptAlertThreshold` (optional): between 0 (0%) and 1 (100%), defaults to 0.1 (10%). NestDB will refuse to start if more than this percentage of the datafile is corrupt. 0 means you don't tolerate any corruption, 1 means you don't care.
 * `compareStrings` (optional): `function compareStrings(a, b)` should compare strings `a` and `b` and must return `-1`, `0` or `1`. If specified, it overrides default string comparison (`===`), which is not well adapted to non-US characters such as accented or diacritical letters. Using the native `String.prototype.localeCompare` will be the right choice most of the time.
+* `storage` (optional): A custom storage engine for the database files. Must implement _at least_ the handful of methods exported by the standard "storage" module included in NestDB, as detailed below in the [Using A Custom Storage Engine](#using-a-custom-storage-engine) section.
 
 If you use a persistent datastore without the `autoload` option, you need to call `load` manually.
 This function fetches the data from datafile and prepares the datastore. **Do NOT forget it!** If you use a
@@ -782,10 +784,100 @@ db.destroy();
 ```
 
 
-## Browser version
-The browser version and its minified counterpart are in the `browser-version/out` directory. You only need to require `nestdb.js` or `nestdb.min.js` in your HTML file and the global object `NestDB` can be used right away, with the same API as the server version:
+### Using A Custom Storage Engine
 
-```
+As mentioned in the [Creating/loading a datastore](#creatingloading-a-datastore) section above, NestDB allows you to specify a custom storage engine for a persistent `Datastore` instance by passing in a custom `options.storage` object to the constructor.
+
+This is useful for leveraging NestDB as a database wrapper around non-standard file systems, such as React Native or WinJS.
+
+The required interface to implement for a custom storage engine is as follows:
+
+#### `storage.init`
+
+**Purpose:** Immediately before loading a datastore, ensure that either:
+ - a datafile exists
+     - The default implementation also ensures that the datafile contains all the data even if there was a crash during a full file write by attempting to recover it from a temporary datafile if needed.
+ - or a new empty datafile is created
+     - The default implementation also takes advantage of this to create any missing directories in the file's path.
+
+##### Interface
+
+This function must accept the following exact invocation: `storage.init(file, callback)`
+
+ - `file`: Required. A String representing the path to a datafile.
+ - `callback`: Required. A Function that MUST be invoked when the operation has completed.
+     - Its first invocation argument, if any, must either be an `Error` instance or `undefined`/`null`.
+
+The function's return value is irrelevant.
+
+
+#### `storage.read`
+
+**Purpose:** Read all contents from a datafile during the initial loading process for a datastore. The datafile should separate its records using `"\n"` as the delimiting character.
+
+##### Interface
+
+This function must accept the following exact invocation: `storage.read(file, callback)`
+
+ - `file`: Required. A String representing the path to a datafile.
+ - `callback`: Required. A Function that MUST be invoked when the operation has completed.
+     - Its first invocation argument must either be an `Error` instance or `undefined`/`null`.
+     - Its second invocation argument must be a String representing the entire datafile's contents, which will be turned into records by splitting on the `"\n"` delimiting characters.
+
+The function's return value is irrelevant.
+
+
+#### `storage.append`
+
+**Purpose:** Append new records to a datafile without modifying its current contents. This handles all insertions, modifications, and deletions (by appending "action" records) for both documents and index definitions.
+
+##### Interface
+
+This function must accept the following exact invocation: `storage.append(file, data, callback)`
+
+ - `file`: Required. A String representing the path to a datafile.
+ - `data`: Required. A String representing the new contents to be added to the datafile. Multiple records must be provided with `"\n"` delimiting characters.
+ - `callback`: Required. A Function that MUST be invoked when the operation has completed.
+     - Its first invocation argument, if any, must either be an `Error` instance or `undefined`/`null`.
+
+The function's return value is irrelevant.
+
+
+#### `storage.write`
+
+**Purpose:** Use to overwrite the entire contents of the datafile after processing and condensing all records. This is used at the end of the initial loading process, as well as during every compaction operation.
+
+##### Interface
+
+This function must accept the following exact invocation: `storage.write(file, data, callback)`
+
+ - `file`: Required. A String representing the path to a datafile.
+ - `data`: Required. A String representing the entire contents to be written to the datafile. Multiple records must be provided with `"\n"` delimiting characters.
+ - `callback`: Required. A Function that MUST be invoked when the operation has completed.
+     - Its first invocation argument, if any, must either be an `Error` instance or `undefined`/`null`.
+
+The function's return value is irrelevant.
+
+
+#### `storage.remove`
+
+**Purpose:** Completely delete a datafile, if it exists. This is only used if a datastore is intentionally destroyed.
+
+##### Interface
+
+This function must accept the following exact invocation: `storage.remove(file, callback)`
+
+ - `file`: Required. A String representing the path to a datafile.
+ - `callback`: Required. A Function that MUST be invoked when the operation has completed.
+     - Its first invocation argument, if any, must either be an `Error` instance or `undefined`/`null`.
+
+The function's return value is irrelevant.
+
+
+## Browser version
+The browser version and its minified counterpart are in the `browser-version/out/` directory. You only need to require `nestdb.js` or `nestdb.min.js` in your HTML file and the global object `NestDB` can be used right away, with the same API as the server version:
+
+```html
 <script src="nestdb.min.js"></script>
 <script>
   var db = new NestDB();   // Create an in-memory only datastore
@@ -802,12 +894,12 @@ If you specify a `filename`, the datastore will be persistent, and automatically
 
 NestDB is compatible with all major browsers: Chrome, Safari, Firefox, IE9+. Tests are in the `browser-version/test` directory (files `index.html` and `testPersistence.html`).
 
-If you fork and modify nestdb, you can build the browser version from the sources, the build script is `browser-version/build.js`.
+If you fork and modify nestdb, you can build the browser version from the sources, the build script is `npm run build`.
 
 
 ## Performance
 ### Speed
-NestDB is not intended to be a replacement of large-scale databases such as MongoDB, and as such was not designed for speed. That said, it is still pretty fast on the expected datasets, especially if you use indexing. On a typical, not-so-fast dev machine, for a collection containing 10,000 documents, with indexing:  
+NestDB is not intended to be a replacement of large-scale databases such as MongoDB, and as such was not designed for speed. That said, it is still pretty fast on the expected data sets, especially if you use indexing. On a typical, not-so-fast dev machine, for a collection containing 10,000 documents, with indexing:  
 * Insert: **10,680 ops/s**
 * Find: **43,290 ops/s**
 * Update: **8,000 ops/s**
@@ -817,7 +909,7 @@ You can run these simple benchmarks by executing the scripts in the `benchmarks`
 
 ### Memory footprint
 A copy of the whole datastore is kept in memory. This is not much on the
-expected kind of datasets (20MB for 10,000 2KB documents).
+expected kind of data sets (20MB for 10,000 2KB documents).
 
 ## NeDB use in other services
 * <a href="https://github.com/louischatriot/connect-nedb-session" target="_blank">connect-nedb-session</a> is a session store for Connect and Express, backed by nedb

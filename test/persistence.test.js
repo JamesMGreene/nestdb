@@ -5,6 +5,7 @@ var should = require('chai').should()
   , path = require('path')
   , _ = require('underscore')
   , async = require('async')
+  , mkdirp = require('mkdirp')
   , model = require('../lib/model')
   , customUtils = require('../lib/customUtils')
   , Datastore = require('../lib/datastore')
@@ -24,7 +25,7 @@ describe('Persistence', function () {
 
     async.waterfall([
       function (cb) {
-        Persistence.ensureDirectoryExists(path.dirname(testDb), function () {
+        mkdirp(path.dirname(testDb), function () {
           fs.exists(testDb, function (exists) {
             if (exists) {
               fs.unlink(testDb, cb);
@@ -319,7 +320,7 @@ describe('Persistence', function () {
 
     it("Declaring only one hook will throw an exception to prevent data loss", function (done) {
       var hookTestFilename = 'workspace/hookTest.db'
-      storage.ensureFileDoesntExist(hookTestFilename, function () {
+      storage.remove(hookTestFilename, function () {
         fs.writeFileSync(hookTestFilename, "Some content", "utf8");
 
         (function () {
@@ -346,7 +347,7 @@ describe('Persistence', function () {
 
     it("Declaring two hooks that are not reverse of one another will cause an exception to prevent data loss", function (done) {
       var hookTestFilename = 'workspace/hookTest.db'
-      storage.ensureFileDoesntExist(hookTestFilename, function () {
+      storage.remove(hookTestFilename, function () {
         fs.writeFileSync(hookTestFilename, "Some content", "utf8");
 
         (function () {
@@ -365,7 +366,7 @@ describe('Persistence', function () {
 
     it("A serialization hook can be used to transform data before writing new state to disk", function (done) {
       var hookTestFilename = 'workspace/hookTest.db'
-      storage.ensureFileDoesntExist(hookTestFilename, function () {
+      storage.remove(hookTestFilename, function () {
         var d = new Datastore({ filename: hookTestFilename, autoload: true
           , afterSerialization: as
           , beforeDeserialization: bd
@@ -444,7 +445,7 @@ describe('Persistence', function () {
 
     it("Use serialization hook when persisting cached database or compacting", function (done) {
       var hookTestFilename = 'workspace/hookTest.db'
-      storage.ensureFileDoesntExist(hookTestFilename, function () {
+      storage.remove(hookTestFilename, function () {
         var d = new Datastore({ filename: hookTestFilename, autoload: true
           , afterSerialization: as
           , beforeDeserialization: bd
@@ -506,7 +507,7 @@ describe('Persistence', function () {
 
     it("Deserialization hook is correctly used when loading data", function (done) {
       var hookTestFilename = 'workspace/hookTest.db'
-      storage.ensureFileDoesntExist(hookTestFilename, function () {
+      storage.remove(hookTestFilename, function () {
         var d = new Datastore({ filename: hookTestFilename, autoload: true
           , afterSerialization: as
           , beforeDeserialization: bd
@@ -563,7 +564,7 @@ describe('Persistence', function () {
       (function () { new Datastore({ filename: 'workspace/bad.db~' }); }).should.throw();
     })
 
-    it('If no file exists, ensureDatafileIntegrity creates an empty datafile', function (done) {
+    it('If no file exists, init creates an empty datafile', function (done) {
       var p = new Persistence({ db: { inMemoryOnly: false, filename: 'workspace/it.db' } });
 
       if (fs.existsSync('workspace/it.db')) { fs.unlinkSync('workspace/it.db'); }
@@ -572,7 +573,7 @@ describe('Persistence', function () {
       fs.existsSync('workspace/it.db').should.equal(false);
       fs.existsSync('workspace/it.db~').should.equal(false);
 
-      storage.ensureDatafileIntegrity(p.filename, function (err) {
+      storage.init(p.filename, function (err) {
         assert.isNull(err);
 
         fs.existsSync('workspace/it.db').should.equal(true);
@@ -584,7 +585,7 @@ describe('Persistence', function () {
       });
     });
 
-    it('If only datafile exists, ensureDatafileIntegrity will use it', function (done) {
+    it('If only datafile exists, init will use it', function (done) {
       var p = new Persistence({ db: { inMemoryOnly: false, filename: 'workspace/it.db' } });
 
       if (fs.existsSync('workspace/it.db')) { fs.unlinkSync('workspace/it.db'); }
@@ -595,7 +596,7 @@ describe('Persistence', function () {
       fs.existsSync('workspace/it.db').should.equal(true);
       fs.existsSync('workspace/it.db~').should.equal(false);
 
-      storage.ensureDatafileIntegrity(p.filename, function (err) {
+      storage.init(p.filename, function (err) {
         assert.isNull(err);
 
         fs.existsSync('workspace/it.db').should.equal(true);
@@ -607,7 +608,7 @@ describe('Persistence', function () {
       });
     });
 
-    it('If temp datafile exists and datafile doesnt, ensureDatafileIntegrity will use it (cannot happen except upon first use)', function (done) {
+    it('If temp datafile exists and datafile doesnt, init will use it (cannot happen except upon first use)', function (done) {
       var p = new Persistence({ db: { inMemoryOnly: false, filename: 'workspace/it.db' } });
 
       if (fs.existsSync('workspace/it.db')) { fs.unlinkSync('workspace/it.db'); }
@@ -618,7 +619,7 @@ describe('Persistence', function () {
       fs.existsSync('workspace/it.db').should.equal(false);
       fs.existsSync('workspace/it.db~').should.equal(true);
 
-      storage.ensureDatafileIntegrity(p.filename, function (err) {
+      storage.init(p.filename, function (err) {
         assert.isNull(err);
 
         fs.existsSync('workspace/it.db').should.equal(true);
@@ -631,7 +632,7 @@ describe('Persistence', function () {
     });
 
     // Technically it could also mean the write was successful but the rename wasn't, but there is in any case no guarantee that the data in the temp file is whole so we have to discard the whole file
-    it('If both temp and current datafiles exist, ensureDatafileIntegrity will use the datafile, as it means that the write of the temp file failed', function (done) {
+    it('If both temp and current datafiles exist, init will use the datafile, as it means that the write of the temp file failed', function (done) {
       var theDb = new Datastore({ filename: 'workspace/it.db' });
 
       if (fs.existsSync('workspace/it.db')) { fs.unlinkSync('workspace/it.db'); }
@@ -643,7 +644,7 @@ describe('Persistence', function () {
       fs.existsSync('workspace/it.db').should.equal(true);
       fs.existsSync('workspace/it.db~').should.equal(true);
 
-      storage.ensureDatafileIntegrity(theDb.persistence.filename, function (err) {
+      storage.init(theDb.persistence.filename, function (err) {
         assert.isNull(err);
 
         fs.existsSync('workspace/it.db').should.equal(true);
@@ -766,8 +767,8 @@ describe('Persistence', function () {
       var dbFile = 'workspace/test2.db', theDb, theDb2, doc1, doc2;
 
       async.waterfall([
-          async.apply(storage.ensureFileDoesntExist, dbFile)
-        , async.apply(storage.ensureFileDoesntExist, dbFile + '~')
+          async.apply(storage.remove, dbFile)
+        , async.apply(storage.remove, dbFile + '~')
         , function (cb) {
           theDb = new Datastore({ filename: dbFile });
           theDb.loadDatabase(cb);
@@ -903,10 +904,10 @@ describe('Persistence', function () {
   });   // ==== End of 'Prevent dataloss when persisting data' ====
 
 
-  describe('ensureFileDoesntExist', function () {
+  describe('remove', function () {
 
     it('Doesnt do anything if file already doesnt exist', function (done) {
-      storage.ensureFileDoesntExist('workspace/nonexisting', function (err) {
+      storage.remove('workspace/nonexisting', function (err) {
         assert.isNull(err);
         fs.existsSync('workspace/nonexisting').should.equal(false);
         done();
@@ -917,14 +918,14 @@ describe('Persistence', function () {
       fs.writeFileSync('workspace/existing', 'hello world', 'utf8');
       fs.existsSync('workspace/existing').should.equal(true);
 
-      storage.ensureFileDoesntExist('workspace/existing', function (err) {
+      storage.remove('workspace/existing', function (err) {
         assert.isNull(err);
         fs.existsSync('workspace/existing').should.equal(false);
         done();
       });
     });
 
-  });   // ==== End of 'ensureFileDoesntExist' ====
+  });   // ==== End of 'remove' ====
 
 
   describe('destroyDatabase', function () {
@@ -934,7 +935,7 @@ describe('Persistence', function () {
       d.inMemoryOnly.should.equal(false);
       fs.existsSync(d.filename).should.equal(true);
 
-      storage.ensureFileDoesntExist(d.filename, function (err) {
+      storage.remove(d.filename, function (err) {
         assert.isNull(err);
         fs.existsSync(d.filename).should.equal(false);
 

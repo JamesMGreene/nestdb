@@ -5,6 +5,7 @@ var should = require('chai').should()
   , path = require('path')
   , _ = require('underscore')
   , async = require('async')
+  , mkdirp = require('mkdirp')
   , model = require('../lib/model')
   , Datastore = require('../lib/datastore')
   , Persistence = require('../lib/persistence')
@@ -22,7 +23,7 @@ describe('Datastore', function () {
 
     async.waterfall([
       function (cb) {
-        Persistence.ensureDirectoryExists(path.dirname(testDb), function () {
+        mkdirp(path.dirname(testDb), function () {
           fs.exists(testDb, function (exists) {
             if (exists) {
               fs.unlink(testDb, cb);
@@ -3186,6 +3187,372 @@ describe('Datastore', function () {
                          , onload: function (err) { if (err) { return done(err); } db.destroy(); }
                         });
     });
+
+  });
+
+
+  describe('Supports custom storage engines', function () {
+    var dbFilePath = 'path/to/notActuallyPersisted.db'
+      , storageObj = {}
+      , storageApi = {
+          init: function (filename, callback) {
+            storageObj[filename] = storageObj[filename] || [];
+            return callback(null);
+          },
+          read: function (filename, callback) {
+            var fauxFile = storageObj[filename];
+            var ndjson = fauxFile.join('\n');
+            return callback(null, ndjson);
+          },
+          append: function (filename, data, callback) {
+            var fauxFile = storageObj[filename];
+            fauxFile.push.apply(fauxFile, data.split('\n'));
+            return callback(null);
+          },
+          write: function (filename, data, callback) {
+            storageObj[filename].length = 0;
+            return this.append(filename, data, callback);
+          },
+          remove: function (filename, callback) {
+            storageObj[filename].length = 0;
+            delete storageObj[filename];
+            return callback(null);
+          }
+        }
+      ;
+
+      it('should work with an empty initial state', function (done) {
+        var db = new Datastore({
+                       filename: dbFilePath
+                     , autoload: true
+                     , storage: storageApi
+                     });
+
+        // Verify pre-conditions
+        fs.existsSync(dbFilePath).should.equal(false);
+        assert.notExists(storageObj[dbFilePath]);
+
+        db.once('loaded', function () {
+          // Still should not have created a file since we are using an non-file-persisted storage engine
+          fs.existsSync(dbFilePath).should.equal(false);
+
+          // Ensure that `storage.init` was invoked
+          assert.isOk(storageObj[dbFilePath]);
+          storageObj[dbFilePath].should.be.an('array');
+
+          _.compact(storageObj[dbFilePath]).length.should.equal(0);
+
+          // For later referencing...
+          var fauxFile;
+
+          async.series(
+            [
+              function(cb) {
+                db.insert({ foo: 'bar' }, function (err) {
+                  assert.notExists(err);
+                  var records = _.map(_.compact(storageObj[dbFilePath]), function(item) { return JSON.parse(item); });
+                  records.length.should.equal(1);
+                  var doc = records[0];
+                  assert.isOk(doc);
+                  doc.foo.should.equal('bar');
+                  assert.isOk(doc._id);
+
+                  fs.existsSync(dbFilePath).should.equal(false);
+                  cb();
+                });
+              }
+            , function(cb) {
+                db.insert({ foo: 'blah' }, function (err) {
+                  assert.notExists(err);
+                  var records = _.map(_.compact(storageObj[dbFilePath]), function(item) { return JSON.parse(item); });
+                  records.length.should.equal(2);
+                  var doc1 = records[0];
+                  assert.isOk(doc1);
+                  doc1.foo.should.equal('bar');
+                  assert.isOk(doc1._id);
+                  var doc2 = records[1];
+                  assert.isOk(doc2);
+                  doc2.foo.should.equal('blah');
+                  assert.isOk(doc2._id);
+                  cb();
+                });
+              }
+            , function(cb) {
+                db.update({ foo: 'blah' }, { $set: { foo: 'blahze' } }, function (err) {
+                  assert.notExists(err);
+                  var records = _.map(_.compact(storageObj[dbFilePath]), function(item) { return JSON.parse(item); });
+                  records.length.should.equal(3);
+                  var doc1 = records[0];
+                  assert.isOk(doc1);
+                  doc1.foo.should.equal('bar');
+                  assert.isOk(doc1._id);
+                  var doc2 = records[1];
+                  assert.isOk(doc2);
+                  doc2.foo.should.equal('blah');
+                  assert.isOk(doc2._id);
+                  var doc2_mod = records[2];
+                  assert.isOk(doc2_mod);
+                  doc2_mod.foo.should.equal('blahze');
+                  assert.isOk(doc2_mod._id);
+                  doc2_mod._id.should.equal(doc2._id);
+                  cb();
+                });
+              }
+            , function(cb) {
+                db.remove({ foo: 'bar' }, function (err) {
+                  assert.notExists(err);
+                  var records = _.map(_.compact(storageObj[dbFilePath]), function(item) { return JSON.parse(item); });
+                  records.length.should.equal(4);
+                  var doc1 = records[0];
+                  assert.isOk(doc1);
+                  doc1.foo.should.equal('bar');
+                  assert.isOk(doc1._id);
+                  var doc2 = records[1];
+                  assert.isOk(doc2);
+                  doc2.foo.should.equal('blah');
+                  assert.isOk(doc2._id);
+                  var doc2_mod = records[2];
+                  assert.isOk(doc2_mod);
+                  doc2_mod.foo.should.equal('blahze');
+                  assert.isOk(doc2_mod._id);
+                  doc2_mod._id.should.equal(doc2._id);
+                  var doc1_del = records[3];
+                  assert.isOk(doc1_del);
+                  assert.notExists(doc1_del.foo);
+                  doc1_del.$$deleted.should.equal(true);
+                  assert.isOk(doc1_del._id);
+                  doc1_del._id.should.equal(doc1._id);
+                  cb();
+                });
+              }
+            , function(cb) {
+                db.persistence.compactDatafile(function (err) {
+                  assert.notExists(err);
+                  var records = _.map(_.compact(storageObj[dbFilePath]), function(item) { return JSON.parse(item); });
+                  records.length.should.equal(1);
+                  var doc2_mod = records[0];
+                  assert.isOk(doc2_mod);
+                  doc2_mod.foo.should.equal('blahze');
+                  assert.isOk(doc2_mod._id);
+
+                  fs.existsSync(dbFilePath).should.equal(false);
+                  cb();
+                });
+              }
+            , function(cb) {
+                var rawRecords = storageObj[dbFilePath];
+                _.compact(rawRecords).length.should.equal(1);
+
+                db.destroy(function (err) {
+                  assert.notExists(err);
+
+                  // Verify post-conditions
+                  rawRecords.length.should.equal(0);
+                  assert.notExists(storageObj[dbFilePath]);
+
+                  fs.existsSync(dbFilePath).should.equal(false);
+                  cb();
+                });
+              }
+            ]
+          , function (err) {
+              done(err);
+            }
+          );
+        });
+
+      });
+
+      it('should work with existing documents', function (done) {
+        // Arrange
+        var initFile = storageObj[dbFilePath] = [];
+        initFile.push('{"foo":"man","_id":"3HjUxz18jQTOkStn"}');
+        initFile.push('{"foo":"chu","_id":"4HjUxz18jQTOkStz"}');
+
+        assert.isOk(storageObj[dbFilePath]);
+        storageObj[dbFilePath].length.should.equal(2);
+
+        var db = new Datastore({
+                       filename: dbFilePath
+                     , autoload: true
+                     , storage: storageApi
+                     });
+
+        // Verify pre-conditions
+        fs.existsSync(dbFilePath).should.equal(false);
+        assert.isOk(storageObj[dbFilePath]);
+        storageObj[dbFilePath].length.should.equal(2);
+
+        db.once('loaded', function () {
+          // Still should not have created a file since we are using an non-file-persisted storage engine
+          fs.existsSync(dbFilePath).should.equal(false);
+
+          // Ensure that `storage.init` was invoked
+          assert.isOk(storageObj[dbFilePath]);
+          storageObj[dbFilePath].should.be.an('array');
+
+          _.compact(storageObj[dbFilePath]).length.should.equal(2);
+
+          // For later referencing...
+          var fauxFile;
+
+          async.series(
+            [
+              function(cb) {
+                db.insert({ foo: 'bar' }, function (err) {
+                  assert.notExists(err);
+                  var records = _.map(_.compact(storageObj[dbFilePath]), function(item) { return JSON.parse(item); });
+                  records.length.should.equal(3);
+                  var doc1 = records[0];
+                  assert.isOk(doc1);
+                  doc1.foo.should.equal('man');
+                  assert.isOk(doc1._id);
+                  var doc2 = records[1];
+                  assert.isOk(doc2);
+                  doc2.foo.should.equal('chu');
+                  assert.isOk(doc2._id);
+                  var doc3 = records[2];
+                  assert.isOk(doc3);
+                  doc3.foo.should.equal('bar');
+                  assert.isOk(doc3._id);
+
+                  fs.existsSync(dbFilePath).should.equal(false);
+                  cb();
+                });
+              }
+            , function(cb) {
+                db.insert({ foo: 'blah' }, function (err) {
+                  assert.notExists(err);
+                  var records = _.map(_.compact(storageObj[dbFilePath]), function(item) { return JSON.parse(item); });
+                  records.length.should.equal(4);
+                  var doc1 = records[0];
+                  assert.isOk(doc1);
+                  doc1.foo.should.equal('man');
+                  assert.isOk(doc1._id);
+                  var doc2 = records[1];
+                  assert.isOk(doc2);
+                  doc2.foo.should.equal('chu');
+                  assert.isOk(doc2._id);
+                  var doc3 = records[2];
+                  assert.isOk(doc3);
+                  doc3.foo.should.equal('bar');
+                  assert.isOk(doc3._id);
+                  var doc4 = records[3];
+                  assert.isOk(doc4);
+                  doc4.foo.should.equal('blah');
+                  assert.isOk(doc4._id);
+                  cb();
+                });
+              }
+            , function(cb) {
+                db.update({ foo: 'blah' }, { $set: { foo: 'blahze' } }, function (err) {
+                  assert.notExists(err);
+                  var records = _.map(_.compact(storageObj[dbFilePath]), function(item) { return JSON.parse(item); });
+                  records.length.should.equal(5);
+                  var doc1 = records[0];
+                  assert.isOk(doc1);
+                  doc1.foo.should.equal('man');
+                  assert.isOk(doc1._id);
+                  var doc2 = records[1];
+                  assert.isOk(doc2);
+                  doc2.foo.should.equal('chu');
+                  assert.isOk(doc2._id);
+                  var doc3 = records[2];
+                  assert.isOk(doc3);
+                  doc3.foo.should.equal('bar');
+                  assert.isOk(doc3._id);
+                  var doc4 = records[3];
+                  assert.isOk(doc4);
+                  doc4.foo.should.equal('blah');
+                  assert.isOk(doc4._id);
+                  var doc4_mod = records[4];
+                  assert.isOk(doc4_mod);
+                  doc4_mod.foo.should.equal('blahze');
+                  assert.isOk(doc4_mod._id);
+                  doc4_mod._id.should.equal(doc4._id);
+                  cb();
+                });
+              }
+            , function(cb) {
+                db.remove({ foo: 'bar' }, function (err) {
+                  assert.notExists(err);
+                  var records = _.map(_.compact(storageObj[dbFilePath]), function(item) { return JSON.parse(item); });
+                  records.length.should.equal(6);
+                  var doc1 = records[0];
+                  assert.isOk(doc1);
+                  doc1.foo.should.equal('man');
+                  assert.isOk(doc1._id);
+                  var doc2 = records[1];
+                  assert.isOk(doc2);
+                  doc2.foo.should.equal('chu');
+                  assert.isOk(doc2._id);
+                  var doc3 = records[2];
+                  assert.isOk(doc3);
+                  doc3.foo.should.equal('bar');
+                  assert.isOk(doc3._id);
+                  var doc4 = records[3];
+                  assert.isOk(doc4);
+                  doc4.foo.should.equal('blah');
+                  assert.isOk(doc4._id);
+                  var doc4_mod = records[4];
+                  assert.isOk(doc4_mod);
+                  doc4_mod.foo.should.equal('blahze');
+                  assert.isOk(doc4_mod._id);
+                  doc4_mod._id.should.equal(doc4._id);
+                  var doc3_del = records[5];
+                  assert.isOk(doc3_del);
+                  assert.notExists(doc3_del.foo);
+                  doc3_del.$$deleted.should.equal(true);
+                  assert.isOk(doc3_del._id);
+                  doc3_del._id.should.equal(doc3._id);
+                  cb();
+                });
+              }
+            , function(cb) {
+                db.persistence.compactDatafile(function (err) {
+                  assert.notExists(err);
+                  var records = _.map(_.compact(storageObj[dbFilePath]), function(item) { return JSON.parse(item); });
+                  records.length.should.equal(3);
+                  var doc1 = records[0];
+                  assert.isOk(doc1);
+                  doc1.foo.should.equal('man');
+                  assert.isOk(doc1._id);
+                  var doc2 = records[1];
+                  assert.isOk(doc2);
+                  doc2.foo.should.equal('chu');
+                  assert.isOk(doc2._id);
+                  var doc4_mod = records[2];
+                  assert.isOk(doc4_mod);
+                  doc4_mod.foo.should.equal('blahze');
+                  assert.isOk(doc4_mod._id);
+
+                  fs.existsSync(dbFilePath).should.equal(false);
+                  cb();
+                });
+              }
+            , function(cb) {
+                var rawRecords = storageObj[dbFilePath];
+                _.compact(rawRecords).length.should.equal(3);
+
+                db.destroy(function (err) {
+                  assert.notExists(err);
+
+                  // Verify post-conditions
+                  rawRecords.length.should.equal(0);
+                  assert.notExists(storageObj[dbFilePath]);
+
+                  fs.existsSync(dbFilePath).should.equal(false);
+                  cb();
+                });
+              }
+            ]
+          , function (err) {
+              done(err);
+            }
+          );
+        });
+
+      });
 
   });
 

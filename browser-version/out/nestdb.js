@@ -309,6 +309,7 @@ var customUtils = require('./customUtils')
  * @param {Function} options.afterSerialization/options.beforeDeserialization Optional, serialization hooks
  * @param {Number} options.corruptAlertThreshold Optional, threshold after which an alert is thrown if too much data is corrupt
  * @param {Function} options.compareStrings Optional, string comparison function that overrides default for sorting
+ * @param {Object} options.storage Optional, custom storage engine for the database files. Must implement all methods exported by the standard "storage" module included in NestDB
  *
  * @fires Datastore.created
  * @fires Datastore#loaded
@@ -365,6 +366,7 @@ function Datastore(options) {
                                       , afterSerialization: options.afterSerialization
                                       , beforeDeserialization: options.beforeDeserialization
                                       , corruptAlertThreshold: options.corruptAlertThreshold
+                                      , storage: options.storage
                                       });
 
   // This new executor is ready if we don't use persistence
@@ -2335,7 +2337,7 @@ module.exports.compareThings = compareThings;
  * * Persistence.persistNewState(newDocs, callback) where newDocs is an array of documents and callback has signature err
  */
 
-var storage = require('./storage')
+var defaultStorage = require('./storage')
   , path = require('path')
   , model = require('./model')
   , async = require('async')
@@ -2347,6 +2349,7 @@ var storage = require('./storage')
 /**
  * Create a new Persistence object for database options.db
  * @param {Datastore} options.db
+ * @param {Object} options.storage Optional, custom storage engine for the database files. Must implement all methods exported by the standard "storage" module included in NestDB
  */
 function Persistence (options) {
   var i, j, randomString;
@@ -2355,6 +2358,7 @@ function Persistence (options) {
   this.inMemoryOnly = this.db.inMemoryOnly;
   this.filename = this.db.filename;
   this.corruptAlertThreshold = options.corruptAlertThreshold !== undefined ? options.corruptAlertThreshold : 0.1;
+  this.storage = options.storage || defaultStorage;
 
   if (!this.inMemoryOnly && this.filename && this.filename.charAt(this.filename.length - 1) === '~') {
     throw new Error("The datafile name can't end with a ~, which is reserved for crash safe backup files");
@@ -2383,12 +2387,10 @@ function Persistence (options) {
 /**
  * Check if a directory exists and create it on the fly if it is not the case
  * cb is optional, signature: err
+ * @deprecated Use `require('mkdirp')` instead
  */
-Persistence.ensureDirectoryExists = function (dir, cb) {
-  var callback = cb || function () {}
-    ;
-
-  storage.mkdirp(dir, function (err) { return callback(err); });
+Persistence.prototype.ensureDirectoryExists = function (dir, cb) {
+  throw new Error('Deprecated! Use `require("mkdirp")` instead.');
 };
 
 
@@ -2415,7 +2417,7 @@ Persistence.prototype.persistCachedDatabase = function (cb) {
     }
   });
 
-  storage.crashSafeWriteFile(this.filename, toPersist, function (err) {
+  this.storage.write(this.filename, toPersist, function (err) {
     if (err) { return callback(err); }
     self.db.emit('compacted');
     return callback(null);
@@ -2479,7 +2481,7 @@ Persistence.prototype.persistNewState = function (newDocs, cb) {
 
   if (toPersist.length === 0) { return callback(null); }
 
-  storage.appendFile(self.filename, toPersist, 'utf8', function (err) {
+  this.storage.append(self.filename, toPersist, function (err) {
     return callback(err);
   });
 };
@@ -2554,32 +2556,32 @@ Persistence.prototype.loadDatabase = function (cb) {
 
   async.waterfall([
     function (cb) {
-      Persistence.ensureDirectoryExists(path.dirname(self.filename), function (err) {
-        storage.ensureDatafileIntegrity(self.filename, function (err) {
-          storage.readFile(self.filename, 'utf8', function (err, rawData) {
-            if (err) { return cb(err); }
+      self.storage.init(self.filename, function (err) {
+        if (err) { return cb(err); }
 
-            try {
-              var treatedData = self.treatRawData(rawData);
-            } catch (e) {
-              return cb(e);
-            }
+        self.storage.read(self.filename, function (err, rawData) {
+          if (err) { return cb(err); }
 
-            // Recreate all indexes in the datafile
-            Object.keys(treatedData.indexes).forEach(function (key) {
-              self.db.indexes[key] = new Index(treatedData.indexes[key]);
-            });
+          try {
+            var treatedData = self.treatRawData(rawData);
+          } catch (e) {
+            return cb(e);
+          }
 
-            // Fill cached database (i.e. all indexes) with data
-            try {
-              self.db.resetIndexes(treatedData.data);
-            } catch (e) {
-              self.db.resetIndexes();   // Rollback any index which didn't fail
-              return cb(e);
-            }
-
-            self.db.persistence.persistCachedDatabase(cb);
+          // Recreate all indexes in the datafile
+          Object.keys(treatedData.indexes).forEach(function (key) {
+            self.db.indexes[key] = new Index(treatedData.indexes[key]);
           });
+
+          // Fill cached database (i.e. all indexes) with data
+          try {
+            self.db.resetIndexes(treatedData.data);
+          } catch (e) {
+            self.db.resetIndexes();   // Rollback any index which didn't fail
+            return cb(e);
+          }
+
+          self.db.persistence.persistCachedDatabase(cb);
         });
       });
     }
@@ -2608,7 +2610,7 @@ Persistence.prototype.destroyDatabase = function (cb) {
   // In-memory only datastore
   if (self.inMemoryOnly) { return callback(null); }
 
-  storage.ensureFileDoesntExist(self.filename, callback);
+  self.storage.remove(self.filename, callback);
 };
 
 
@@ -2618,7 +2620,7 @@ module.exports = Persistence;
 
 },{"./customUtils":2,"./indexes":5,"./model":6,"./storage":8,"async":9,"path":17}],8:[function(require,module,exports){
 /**
- * Way data is stored for this database
+ * How data is stored for this database
  * For a Node.js/Node Webkit database it's the file system
  * For a browser-side database it's localforage, which uses the best backend available (IndexedDB then WebSQL then localStorage)
  *
@@ -2626,6 +2628,8 @@ module.exports = Persistence;
  */
 
 var localforage = require('localforage')
+  , storage = {}
+  ;
 
 // Configure localforage to display NestDB name for now. Would be a good idea to let user use his own app name
 localforage.config({
@@ -2634,84 +2638,54 @@ localforage.config({
 });
 
 
-function exists (filename, callback) {
-  localforage.getItem(filename, function (err, value) {
-    if (value !== null) {   // Even if value is undefined, localforage returns null
-      return callback(true);
-    } else {
-      return callback(false);
-    }
-  });
-}
+// No need for a crash-safe function in the browser
+storage.write = function (filename, contents, callback) {
+  localforage.setItem(filename, contents, callback);
+};
 
 
-function rename (filename, newFilename, callback) {
-  localforage.getItem(filename, function (err, value) {
-    if (value === null) {
-      localforage.removeItem(newFilename, function () { return callback(); });
-    } else {
-      localforage.setItem(newFilename, value, function () {
-        localforage.removeItem(filename, function () { return callback(); });
-      });
-    }
-  });
-}
-
-
-function writeFile (filename, contents, options, callback) {
-  // Options do not matter in browser setup
-  if (typeof options === 'function') { callback = options; }
-  localforage.setItem(filename, contents, function () { return callback(); });
-}
-
-
-function appendFile (filename, toAppend, options, callback) {
-  // Options do not matter in browser setup
-  if (typeof options === 'function') { callback = options; }
-
+storage.append = function (filename, toAppend, callback) {
   localforage.getItem(filename, function (err, contents) {
+    if (err) {
+      return callback(err);
+    }
     contents = contents || '';
     contents += toAppend;
-    localforage.setItem(filename, contents, function () { return callback(); });
+    localforage.setItem(filename, contents, callback);
   });
-}
+};
 
 
-function readFile (filename, options, callback) {
-  // Options do not matter in browser setup
-  if (typeof options === 'function') { callback = options; }
-  localforage.getItem(filename, function (err, contents) { return callback(null, contents || ''); });
-}
+storage.read = function (filename, callback) {
+  localforage.getItem(filename, function (err, contents) {
+    if (err) {
+      return callback(err);
+    }
+    callback(null, contents || '');
+  });
+};
 
 
-function unlink (filename, callback) {
-  localforage.removeItem(filename, function () { return callback(); });
-}
+storage.remove = function (filename, callback) {
+  localforage.removeItem(filename, callback);
+};
 
 
-// Nothing to do, no directories will be used on the browser
-function mkdirp (dir, callback) {
-  return callback();
-}
-
-
-// Nothing to do, no data corruption possible in the brower
-function ensureDatafileIntegrity (filename, callback) {
+// Nothing to do because:
+//  - no data corruption is possible in the browser
+//  - no directory creation is possible in the browser
+//  - no need to initialize an empty "file" for the datastore in the browser
+storage.init = function (filename, callback) {
   return callback(null);
-}
+};
 
 
 // Interface
-module.exports.exists = exists;
-module.exports.rename = rename;
-module.exports.writeFile = writeFile;
-module.exports.crashSafeWriteFile = writeFile;   // No need for a crash safe function in the browser
-module.exports.appendFile = appendFile;
-module.exports.readFile = readFile;
-module.exports.unlink = unlink;
-module.exports.mkdirp = mkdirp;
-module.exports.ensureDatafileIntegrity = ensureDatafileIntegrity;
-
+module.exports.init = storage.init;
+module.exports.read = storage.read;
+module.exports.write = storage.write;
+module.exports.append = storage.append;
+module.exports.remove = storage.remove;
 
 },{"localforage":14}],9:[function(require,module,exports){
 (function (process,global){
