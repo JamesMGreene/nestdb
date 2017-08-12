@@ -47,6 +47,7 @@ It is a subset of MongoDB's API (the most used operations).
 * <a href="#removing-documents">Removing documents</a>
 * <a href="#indexing">Indexing</a>
 * <a href="#destroying">Destroying a datastore</a>
+* <a href="#extending-with-plugins">Extending with plugins</a>
 * <a href="#using-a-custom-storage-engine">Using a custom storage engine</a>
 
 ### Creating/loading a datastore
@@ -61,7 +62,7 @@ You can use NestDB as an in-memory only datastore or as a persistent datastore. 
 * `beforeDeserialization` (optional): inverse of `afterSerialization`. Make sure to include both and not just one or you risk data loss. For the same reason, make sure both functions are inverses of one another. Some failsafe mechanisms are in place to prevent data loss if you misuse the serialization hooks: NestDB checks that never one is declared without the other, and checks that they are reverse of one another by testing on random strings of various lengths. In addition, if too much data is detected as corrupt, NestDB will refuse to start as it could mean you're not using the deserialization hook corresponding to the serialization hook used before (see below).
 * `corruptAlertThreshold` (optional): between 0 (0%) and 1 (100%), defaults to 0.1 (10%). NestDB will refuse to start if more than this percentage of the datafile is corrupt. 0 means you don't tolerate any corruption, 1 means you don't care.
 * `compareStrings` (optional): `function compareStrings(a, b)` should compare strings `a` and `b` and must return `-1`, `0` or `1`. If specified, it overrides default string comparison (`===`), which is not well adapted to non-US characters such as accented or diacritical letters. Using the native `String.prototype.localeCompare` will be the right choice most of the time.
-* `storage` (optional): A custom storage engine for the database files. Must implement _at least_ the handful of methods exported by the standard "storage" module included in NestDB, as detailed below in the [Using A Custom Storage Engine](#using-a-custom-storage-engine) section.
+* `storage` (optional): A custom storage engine for the database files. Must implement _at least_ the handful of methods exported by the standard "storage" module included in NestDB, as detailed below in the [Using a custom storage engine](#using-a-custom-storage-engine) section.
 
 If you use a persistent datastore without the `autoload` option, you need to call `load` manually.
 This function fetches the data from datafile and prepares the datastore. **Do NOT forget it!** If you use a
@@ -784,7 +785,58 @@ db.destroy();
 ```
 
 
-### Using A Custom Storage Engine
+### Extending with plugins
+
+Extending NestDB with plugins is easy! There are two different implementation patterns available for plugins.
+
+Regardless of which pattern you choose, the `Datastore.plugin()` method returns the `Datastore` object itself, making it easy to chain multiple plugin calls serially.
+
+#### API extension object
+
+First, you can pass in an object. Each key in the object will be added as a property to the `Datastore.prototype`. It intentionally does NOT check for conflicts, so be mindful when naming your properties that you may be overwriting an existing property.
+
+```js
+Datastore.plugin({
+  // Add an instance method to all `Datastore` instances
+  sayHello: function () {
+    console.log('Hello!');
+  }
+});
+
+var db = new Datastore();
+db.sayHello();  // prints "Hello!"
+```
+
+This will add a `sayHello` instance method to all datastores, which runs associated function. It will always be called in context, so that within the function, `this` refers to the datastore instance.
+
+#### API extension function
+
+Alternatively, instead of passing in an object to `Datastore.plugin()`, you can pass in a function that takes the Datastore object and performs whatever operations you want on it. You can use this to load multiple plugins, add adapters, or attach event listeners to the Datastore object.
+
+```js
+Datastore.plugin(function (Datastore) {
+
+  // Add a static method to the `Datastore` object
+  Datastore.hello = function () {
+    console.log('world');
+  };
+
+  // Add an instance method to all `Datastore` instances
+  // This is basically equivalent to using the API extension object
+  Datastore.prototype.goodbye = function () {
+    console.log('cruel world');
+  };
+
+});
+
+Datastore.hello();  // prints "world"
+
+var db = new Datastore();
+db.goodbye();  // prints "cruel world"
+```
+
+
+### Using a custom storage engine
 
 As mentioned in the [Creating/loading a datastore](#creatingloading-a-datastore) section above, NestDB allows you to specify a custom storage engine for a persistent `Datastore` instance by passing in a custom `options.storage` object to the constructor.
 

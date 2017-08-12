@@ -3557,4 +3557,109 @@ describe('Datastore', function () {
 
   });
 
+  describe('Can be extended with Plugin API', function () {
+
+    var expectedPrototypeProperties;
+
+    before(function () {
+      expectedPrototypeProperties = Object.keys(Datastore.prototype);
+    });
+
+    function removeAllPluginProps() {
+      // Remove all plugin properties
+      Object.keys(Datastore.prototype).forEach(function (protoKey) {
+        if (expectedPrototypeProperties.indexOf(protoKey) === -1) {
+          delete Datastore.prototype[protoKey];
+        }
+      });
+    }
+
+    beforeEach(removeAllPluginProps);
+
+    afterEach(removeAllPluginProps);
+
+
+    it('`Datastore.plugin` static method exists', function () {
+      assert.isOk(Datastore.plugin);
+      Datastore.plugin.should.be.a('function');
+    });
+
+    it('should allow for plugin to be a function', function () {
+      // Verify pre-conditions
+      var dbOrig = new Datastore({ inMemoryOnly: true, autoload: true });
+      assert.notExists(Datastore.funcStaticPlugin);
+      assert.notExists(Datastore.funcInstancePlugin);
+      assert.notExists(Datastore.prototype.funcStaticPlugin);
+      assert.notExists(Datastore.prototype.funcInstancePlugin);
+      assert.notExists(dbOrig.funcStaticPlugin);
+      assert.notExists(dbOrig.funcInstancePlugin);
+
+      // Act
+      Datastore.plugin(function (Datastore) {
+        Datastore.funcStaticPlugin = function () { this.should.equal(Datastore); };
+        Datastore.prototype.funcInstancePlugin = function () { this.should.be.an.instanceof(Datastore); };
+      });
+
+      var db = new Datastore({ inMemoryOnly: true, autoload: true });
+
+      // Assert
+      assert.isOk(Datastore.funcStaticPlugin);
+      assert.notExists(Datastore.prototype.funcStaticPlugin);
+      assert.notExists(db.funcStaticPlugin);
+      Datastore.funcStaticPlugin.should.be.a('function');
+      Datastore.funcStaticPlugin();
+
+      assert.notExists(Datastore.funcInstancePlugin)
+      assert.isOk(Datastore.prototype.funcInstancePlugin)
+      assert.isOk(db.funcInstancePlugin);
+      Datastore.prototype.funcInstancePlugin.should.be.a('function');
+      db.funcInstancePlugin.should.be.a('function');
+      db.funcInstancePlugin.should.equal(Datastore.prototype.funcInstancePlugin);
+      db.funcInstancePlugin();
+    });
+
+    it('should allow for plugin to be a non-empty object', function () {
+      // Verify pre-conditions
+      var dbOrig = new Datastore({ inMemoryOnly: true, autoload: true });
+      assert.notExists(Datastore.funcInstancePlugin);
+      assert.notExists(Datastore.prototype.funcInstancePlugin);
+      assert.notExists(dbOrig.funcInstancePlugin);
+
+      // Act
+      Datastore.plugin({
+        funcInstancePlugin: function () { this.should.be.an.instanceof(Datastore); }
+      });
+
+      var db = new Datastore({ inMemoryOnly: true, autoload: true });
+
+      // Assert
+      assert.notExists(Datastore.funcInstancePlugin)
+      assert.isOk(Datastore.prototype.funcInstancePlugin)
+      assert.isOk(db.funcInstancePlugin);
+      Datastore.prototype.funcInstancePlugin.should.be.a('function');
+      db.funcInstancePlugin.should.be.a('function');
+      db.funcInstancePlugin.should.equal(Datastore.prototype.funcInstancePlugin);
+      db.funcInstancePlugin();
+    });
+
+    it('should throw an Error if plugin is not a function nor a non-empty object', function () {
+      assert.throws(function () {
+        Datastore.plugin('blah');
+      });
+      assert.throws(function () {
+        Datastore.plugin(null);
+      });
+      assert.throws(function () {
+        Datastore.plugin({});
+      });
+    });
+
+    it('should return `Datastore`', function () {
+      var ds = Datastore.plugin({ foo: function() { return 'bar'; } });
+      assert.isOk(ds);
+      assert.isOk(Datastore);
+      Datastore.should.equal(ds);
+    });
+
+  });
 });
