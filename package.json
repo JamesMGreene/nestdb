@@ -53,6 +53,7 @@
     "exec-time": "^0.0.4",
     "fs-extra": "^4.0.1",
     "get-stream": "^3.0.0",
+    "lodash.findindex": "^4.6.0",
     "mocha": "^3.5.0",
     "uglify-js": "^3.0.27"
   },

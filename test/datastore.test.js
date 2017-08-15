@@ -4,6 +4,7 @@ var should = require('chai').should()
   , fs = require('fs')
   , path = require('path')
   , _ = require('underscore')
+  , findIndex = require('lodash.findindex')
   , async = require('async')
   , mkdirp = require('mkdirp')
   , model = require('../lib/model')
@@ -567,6 +568,111 @@ describe('Datastore', function () {
           }
         });
       });
+    });
+
+
+    describe('emits "inserted" event', function () {
+
+      it('once for each single document insertion', function (done) {
+        // Arrange
+        var expectedDocs = [
+              { someProp: 'a' },
+              { someProp: 'b' },
+              { someProp: 'c' }
+            ];
+
+        // Prepare to Assert
+        d.on('inserted', function insertedCallback (newDoc) {
+          var expectedNewDoc = expectedDocs.shift();
+          if (typeof expectedNewDoc !== 'undefined') {
+            newDoc.should.deep.include(expectedNewDoc);
+          }
+          else {
+            done(new Error('Too many "inserted" events were emitted'));
+          }
+
+          if (expectedDocs.length === 0) {
+            setTimeout(function () {
+              d.removeListener('inserted', insertedCallback);
+              done();
+            }, 100);
+          }
+        });
+
+        // Act
+        expectedDocs.forEach(function (doc) {
+          d.insert(doc);
+        });
+      });
+
+      it('once for each document in a multiple document insertion', function (done) {
+        // Arrange
+        var expectedDocs = [
+              { someProp: 'a' },
+              { someProp: 'b' },
+              { someProp: 'c' }
+            ];
+
+        // Prepare to Assert
+        d.on('inserted', function insertedCallback (newDoc) {
+          var expectedNewDoc = expectedDocs.shift();
+          if (typeof expectedNewDoc !== 'undefined') {
+            newDoc.should.deep.include(expectedNewDoc);
+          }
+          else {
+            done(new Error('Too many "inserted" events were emitted'));
+          }
+
+          if (expectedDocs.length === 0) {
+            setTimeout(function () {
+              d.removeListener('inserted', insertedCallback);
+              done();
+            }, 100);
+          }
+        });
+
+        // Act
+        d.insert(expectedDocs);
+      });
+
+      it('once for an upserted document', function (done) {
+        /*jshint latedef:nofunc */
+
+        // Arrange
+        var expectedDoc = { someProp: 'a' };
+        var callbackCount = 0;
+
+        // Prepare to Assert
+        function insertedCallback (newDoc) {
+          callbackCount++;
+          var expectedNewDoc = { someProp: 'a', updatedProp: true };
+          newDoc.should.deep.include(expectedNewDoc);
+
+          if (callbackCount === 1) {
+            setTimeout(function () {
+              d.removeListener('inserted', insertedCallback);
+              d.removeListener('updated', updatedCallback);
+              done();
+            }, 75);
+          }
+          else if (callbackCount > 1) {
+            done(new Error('Too many "inserted" events were emitted'));
+          }
+        }
+        function updatedCallback(/* newDoc, oldDoc */) {
+          setTimeout(function () {
+            d.removeListener('inserted', insertedCallback);
+            d.removeListener('updated', updatedCallback);
+            done(new Error('The "updated" event should not have been emitted for an upserted document'));
+          }, 50);
+        }
+        d.on('inserted', insertedCallback);
+        d.on('updated', updatedCallback);
+
+        // Act
+        d.update(expectedDoc, { $set: { updatedProp: true } }, { upsert: true });
+      });
+
     });
 
   });   // ==== End of 'Insert' ==== //
@@ -1875,6 +1981,93 @@ describe('Datastore', function () {
 
     });   // ==== End of 'Update - Callback signature' ==== //
 
+
+    describe('emits "updated" event', function () {
+
+      it('once for each single document update', function (done) {
+        // Arrange
+        var expectedDocs = [
+              { someProp: 'a' },
+              { someProp: 'b' },
+              { someProp: 'c' }
+            ];
+
+        // Prepare to Assert
+        d.on('updated', function updatedCallback (newDoc, oldDoc) {
+          var expectedOldDoc = expectedDocs.shift();
+
+          if (typeof expectedOldDoc !== 'undefined') {
+            var expectedNewDoc = { someProp: expectedOldDoc.someProp, updatedProp: expectedOldDoc.someProp };
+            oldDoc.should.deep.include(expectedOldDoc);
+            oldDoc.should.not.deep.include(expectedNewDoc);
+            newDoc.should.deep.include(expectedOldDoc);
+            newDoc.should.deep.include(expectedNewDoc);
+          }
+          else {
+            done(new Error('Too many "updated" events were emitted'));
+          }
+
+          if (expectedDocs.length === 0) {
+            setTimeout(function () {
+              d.removeListener('updated', updatedCallback);
+              done();
+            }, 75);
+          }
+        });
+
+        // Act
+        expectedDocs.forEach(function (doc) {
+          d.insert(doc);
+        });
+        expectedDocs.forEach(function (doc) {
+          d.update(doc, { $set: { updatedProp: doc.someProp } }, { multi: true });
+        });
+      });
+
+      it('once for each document in a multiple document update', function (done) {
+        // Arrange
+        var expectedDocs = [
+              { someProp: 'a' },
+              { someProp: 'b' },
+              { someProp: 'c' }
+            ];
+
+        // Prepare to Assert
+        d.on('updated', function updatedCallback (newDoc, oldDoc) {
+          var expectedDocIndex = findIndex(expectedDocs, { someProp: newDoc.someProp });
+          expectedDocIndex.should.not.equal(-1);
+
+          var matchedDocs = expectedDocs.splice(expectedDocIndex, 1);
+          matchedDocs.should.have.lengthOf(1);
+
+          var expectedOldDoc = matchedDocs[0];
+
+          if (typeof expectedOldDoc !== 'undefined') {
+            var expectedNewDoc = { someProp: expectedOldDoc.someProp, updatedProp: true };
+            oldDoc.should.deep.include(expectedOldDoc);
+            oldDoc.should.not.deep.include(expectedNewDoc);
+            newDoc.should.deep.include(expectedOldDoc);
+            newDoc.should.deep.include(expectedNewDoc);
+          }
+          else if (expectedDocs.length === 0) {
+            done(new Error('Too many "updated" events were emitted'));
+          }
+
+          if (expectedDocs.length === 0) {
+            setTimeout(function () {
+              d.removeListener('updated', updatedCallback);
+              done();
+            }, 75);
+          }
+        });
+
+        // Act
+        d.insert(expectedDocs);
+        d.update({ someProp: { $exists: true } }, { $set: { updatedProp: true } }, { multi: true });
+      });
+
+    });
+
   });   // ==== End of 'Update' ==== //
 
 
@@ -2047,6 +2240,85 @@ describe('Datastore', function () {
           });
         });
       });
+    });
+
+
+    describe('emits "removed" event', function () {
+
+      it('once for each single document removal', function (done) {
+        // Arrange
+        var expectedDocs = [
+              { someProp: 'a' },
+              { someProp: 'b' },
+              { someProp: 'c' }
+            ];
+
+        // Prepare to Assert
+        d.on('removed', function removedCallback (oldDoc) {
+          var expectedOldDoc = expectedDocs.shift();
+
+          if (typeof expectedOldDoc !== 'undefined') {
+            oldDoc.should.deep.include(expectedOldDoc);
+          }
+          else {
+            done(new Error('Too many "removed" events were emitted'));
+          }
+
+          if (expectedDocs.length === 0) {
+            setTimeout(function () {
+              d.removeListener('removed', removedCallback);
+              done();
+            }, 75);
+          }
+        });
+
+        // Act
+        expectedDocs.forEach(function (doc) {
+          d.insert(doc);
+        });
+        expectedDocs.forEach(function (doc) {
+          d.remove(doc, { multi: true });
+        });
+      });
+
+      it('once for each document in a multiple document removal', function (done) {
+        // Arrange
+        var expectedDocs = [
+              { someProp: 'a' },
+              { someProp: 'b' },
+              { someProp: 'c' }
+            ];
+
+        // Prepare to Assert
+        d.on('removed', function removedCallback (oldDoc) {
+          var expectedDocIndex = findIndex(expectedDocs, { someProp: oldDoc.someProp });
+          expectedDocIndex.should.not.equal(-1);
+
+          var matchedDocs = expectedDocs.splice(expectedDocIndex, 1);
+          matchedDocs.should.have.lengthOf(1);
+
+          var expectedOldDoc = matchedDocs[0];
+
+          if (typeof expectedOldDoc !== 'undefined') {
+            oldDoc.should.deep.include(expectedOldDoc);
+          }
+          else {
+            done(new Error('Too many "removed" events were emitted'));
+          }
+
+          if (expectedDocs.length === 0) {
+            setTimeout(function () {
+              d.removeListener('removed', removedCallback);
+              done();
+            }, 75);
+          }
+        });
+
+        // Act
+        d.insert(expectedDocs);
+        d.remove({ someProp: { $exists: true } }, { multi: true });
+      });
+
     });
 
   });   // ==== End of 'Remove' ==== //

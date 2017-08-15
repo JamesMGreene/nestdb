@@ -176,7 +176,7 @@ Under the hood, NestDB's persistence uses an append-only format, meaning that al
 
 You can manually call the compaction function with `yourDatastore.persistence.compactDatafile(cb)`, where callback is optional and get passed an error if any. It queues a compaction of the datafile in the executor, to be executed sequentially after all pending operations. The datastore will also fire a `"compacted"` event whenever a compaction process is finished.
 
-You can also set automatic compaction at regular intervals with `yourDatastore.persistence.setAutocompactionInterval(interval)`, `interval` in milliseconds (a minimum of 5s is enforced), and stop automatic compaction with `yourDatastore.persistence.stopAutocompaction()`.
+You can also set automatic compaction at regular intervals with `yourDatastore.persistence.setAutocompactionInterval(interval)`, `interval` in milliseconds (a minimum of 5 seconds is enforced), and stop automatic compaction with `yourDatastore.persistence.stopAutocompaction()`.
 
 Keep in mind that compaction takes a bit of time (not too much: 130ms for 50k records on a typical development machine) and no other operation can happen when it does, so most projects actually don't need to use it.
 
@@ -186,13 +186,15 @@ Durability works similarly to major databases: compaction forces the OS to physi
 
 
 ### Inserting documents
-The native types are `String`, `Number`, `Boolean`, `Date` and `null`. You can also use
-arrays and subdocuments (objects). If a field is `undefined`, it will not be saved (this is different from 
-MongoDB which transforms `undefined` in `null`, something I find counter-intuitive).
+The supported native types are `String`, `Number`, `Boolean`, `Date` and `null`. You can also use arrays and subdocuments (objects). If a field is `undefined`, it will not be saved (this is different from MongoDB which transforms `undefined` in `null`, something I find counter-intuitive).
 
-If the document does not contain an `_id` field, NestDB will automatically generated one for you (a 16-characters alphanumerical string). The `_id` of a document, once set, cannot be modified.
+If the document does not contain an `_id` field, NestDB will automatically generate one for you (a 16-character alphanumerical string). The `_id` of a document, once set, cannot be modified.
 
-Field names cannot begin by '$' or contain a '.'.
+Field names cannot begin by '$'  nor contain a '.'.
+
+Once a document is fully inserted, its datastore will also emit an `"inserted"` event that you can add a listener for. This event is always emitted once for each single new document, even if a bulk-insert is done.
+
+#### Example 1: Inserting a single document
 
 ```js
 var doc = { hello: 'world'
@@ -211,6 +213,8 @@ db.insert(doc, function (err, newDoc) {   // Callback is optional
 });
 ```
 
+#### Example 2: Inserting multiple documents
+
 You can also bulk-insert an array of documents. This operation is atomic, meaning that if one insert fails due to a unique constraint being violated, all changes are rolled back.
 
 ```js
@@ -220,10 +224,23 @@ db.insert([{ a: 5 }, { a: 42 }], function (err, newDocs) {
 });
 
 // If there is a unique constraint on field 'a', this will fail
-db.insert([{ a: 5 }, { a: 42 }, { a: 5 }], function (err) {
+db.insert([{ a: 8 }, { a: 14 }, { a: 8 }], function (err) {
   // err is a 'uniqueViolated' error
   // The datastore was not modified
 });
+```
+
+#### Example 3: Inserting a document with an event listener
+
+```js
+db.on('inserted', function (newDoc) {
+  // newDoc is the newly inserted document, including its _id
+  // This event is always emitted once for each single new document, even if a bulk-insert is done.
+});
+
+db.insert({ a: 5 });
+db.insert({ a: 42 });
+db.insert([{ a: 8 }, { a: 14 }]);
 ```
 
 ### Finding documents
@@ -480,7 +497,6 @@ db.findOne({ planet: 'Earth' }).projection({ planet: 1, 'humans.genders': 1 }).e
 ```
 
 
-
 ### Counting documents
 You can use `count` to count documents. It has the same syntax as `find`. For example:
 
@@ -513,7 +529,13 @@ db.count({}, function (err, count) {
   * For a standard update with `returnUpdatedDocs` flag set to `true` and `multi` to `false`, `affectedDocuments` is the updated document.
   * For a standard update with `returnUpdatedDocs` flag set to `true` and `multi` to `true`, `affectedDocuments` is the array of updated documents.
 
-**Note**: you can't change a document's _id.
+**Note**: You cannot change a document's `_id`.
+
+Once a document is fully updated, its datastore will also emit an `"updated"` event that you can add a listener for. This event is always emitted once for each single updated document, even if a bulk-update is done.
+
+If a document is upserted rather than updated, the datastore will emit an `"inserted"` event instead.
+
+#### Examples
 
 ```js
 // Let's use the same example collection as in the "finding document" part
@@ -623,6 +645,16 @@ db.update({ _id: 'id1' }, { $min: { value: 2 } }, {}, function () {
 db.update({ _id: 'id1' }, { $min: { value: 8 } }, {}, function () {
   // The document will not be modified
 });
+
+
+// Use an event listener for the "updated" event
+// This event is always emitted once for each single updated document, even if a bulk-update is done.
+db.on('updated', function (newDoc, oldDoc) {
+  // newDoc will be: { _id: id, a: 8 }
+  // oldDoc will be: { _id: id, a: 5 }
+});
+db.insert({ a: 5 });
+db.update({ a: 5 }, { $set: { a: 8 } });
 ```
 
 ### Removing documents
@@ -630,6 +662,8 @@ db.update({ _id: 'id1' }, { $min: { value: 8 } }, {}, function () {
 * `query` is the same as the ones used for finding and updating
 * `options` only one option for now: `multi` which allows the removal of multiple documents if set to true. Default is false
 * `callback` is optional, signature: err, numRemoved
+
+Once a document is fully removed, its datastore will also emit an `"removed"` event that you can add a listener for. This event is always emitted once for each single removed document, even if a bulk-remove is done.
 
 ```js
 // Let's use the same example collection as in the "finding document" part
@@ -653,6 +687,18 @@ db.remove({ system: 'solar' }, { multi: true }, function (err, numRemoved) {
 // Removing all documents with the 'match-all' query
 db.remove({}, { multi: true }, function (err, numRemoved) {
 });
+
+
+// Use an event listener for the "removed" event
+// This event is always emitted once for each single removed document, even if a bulk-remove is done.
+db.on('removed', function (oldDoc) {
+  // First event emission will contain oldDoc as: { _id: id, a: 8 }
+  // Second event emission will contain oldDoc as: { _id: id, a: 14 }
+});
+db.insert({ a: 5 });
+db.insert({ a: 8 });
+db.insert({ a: 14 });
+db.remove({ $min: { a: 8 } }, { multi: true });
 ```
 
 ### Indexing
@@ -709,7 +755,6 @@ db.ensureIndex({ fieldName: 'expirationDate', expireAfterSeconds: 0 }, function 
   // Now all documents will expire when system time reaches the date in their
   // expirationDate field
 });
-
 ```
 
 **Note:** the `ensureIndex` function creates the index synchronously, so it's best to use it at application startup. It's quite fast so it doesn't increase startup time much (35 ms for a collection containing 10,000 documents).
