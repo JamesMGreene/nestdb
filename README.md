@@ -19,7 +19,7 @@ $ npm install nestdb --save
 ### Node.js version via Yarn
 
 ```shell
-$ yarn add nedb
+$ yarn add nestdb
 ```
 
 ### Browser version via Bower
