@@ -11,6 +11,20 @@
     "type": "git",
     "url": "git://github.com/JamesMGreene/nestdb.git"
   },
+  "keywords": [
+    "database",
+    "datastore",
+    "embedded",
+    "nested",
+    "nestdb",
+    "nedb",
+    "nedb2",
+    "nedb3",
+    "nedb-core",
+    "newdb",
+    "mongo-lite",
+    "mongodb-lite"
+  ],
   "ignore": ["benchmarks", "lib", "test", "test_lac", "workspace"],
   "main": ["browser-version/out/nestdb.js"],
   "moduleType": ["globals", "amd", "node"],
