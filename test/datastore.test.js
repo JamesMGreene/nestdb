@@ -1874,6 +1874,7 @@ describe('Datastore', function () {
     });
 
     it("createdAt property is unchanged and updatedAt correct after an update, even a complete document replacement", function (done) {
+      var allowedTimeDrift = 15;
       var d2 = new Datastore({ inMemoryOnly: true, timestampData: true });
       d2.insert({ a: 1 });
       d2.findOne({ a: 1 }, function (err, doc) {
@@ -1884,14 +1885,14 @@ describe('Datastore', function () {
           d2.update({ a: 1 }, { $set: { b: 2 } }, {});
           d2.findOne({ a: 1 }, function (err, doc) {
             doc.createdAt.getTime().should.equal(createdAt);
-            assert.isBelow(Date.now() - doc.updatedAt.getTime(), 8);
+            assert.isBelow(Date.now() - doc.updatedAt.getTime(), allowedTimeDrift);
 
             // Complete replacement
             setTimeout(function () {
               d2.update({ a: 1 }, { c: 3 }, {});
               d2.findOne({ c: 3 }, function (err, doc) {
                 doc.createdAt.getTime().should.equal(createdAt);
-                assert.isBelow(Date.now() - doc.updatedAt.getTime(), 8);
+                assert.isBelow(Date.now() - doc.updatedAt.getTime(), allowedTimeDrift);
 
                 done();
               });
