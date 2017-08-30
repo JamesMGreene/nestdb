@@ -1,11 +1,15 @@
-var Index = require('../lib/indexes')
-  , customUtils = require('../lib/customUtils')
-  , should = require('chai').should()
-  , assert = require('chai').assert
-  , _ = require('underscore')
-  , async = require('async')
-  , model = require('../lib/model')
+// Userland modules
+var chai = require('chai')
+
+// Local modules
+  , Index = require('../lib/indexes')
+
+
+// Local variables
+  , should = chai.should()
+  , assert = chai.assert
   ;
+
 
 describe('Indexes', function () {
 

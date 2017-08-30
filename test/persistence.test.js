@@ -1,18 +1,26 @@
-var should = require('chai').should()
-  , assert = require('chai').assert
-  , testDb = 'workspace/test.db'
-  , fs = require('fs')
+// Node.js core modules
+var fs = require('fs')
   , path = require('path')
+  , child_process = require('child_process')
+
+// Userland modules
+  , chai = require('chai')
   , _ = require('underscore')
   , async = require('async')
   , mkdirp = require('mkdirp')
+
+// Local modules
   , model = require('../lib/model')
-  , customUtils = require('../lib/customUtils')
   , Datastore = require('../lib/datastore')
   , Persistence = require('../lib/persistence')
   , storage = require('../lib/storage')
-  , child_process = require('child_process')
-;
+
+
+// Local variables
+  , should = chai.should()
+  , assert = chai.assert
+  , testDb = 'workspace/test.db'
+  ;
 
 
 describe('Persistence', function () {

@@ -1,14 +1,20 @@
-var should = require('chai').should()
-  , assert = require('chai').assert
-  , testDb = 'workspace/test.db'
-  , fs = require('fs')
+// Node.js core modules
+var fs = require('fs')
   , path = require('path')
-  , _ = require('underscore')
+
+// Userland modules
+  , chai = require('chai')
   , async = require('async')
   , mkdirp = require('mkdirp')
-  , model = require('../lib/model')
+
+// Local modules
   , Datastore = require('../lib/datastore')
-  , Persistence = require('../lib/persistence')
+
+
+// Local variables
+  , should = chai.should()
+  , assert = chai.assert
+  , testDb = 'workspace/test.db'
   ;
 
 

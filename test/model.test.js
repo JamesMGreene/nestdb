@@ -1,11 +1,19 @@
-var model = require('../lib/model')
-  , should = require('chai').should()
-  , assert = require('chai').assert
-  , expect = require('chai').expect
+// Node.js core modules
+var fs = require('fs')
+
+// Userland modules
+  , chai = require('chai')
   , _ = require('underscore')
-  , async = require('async')
+
+// Local modules
+  , model = require('../lib/model')
   , Datastore = require('../lib/datastore')
-  , fs = require('fs')
+
+
+// Local variables
+  , should = chai.should()
+  , assert = chai.assert
+  , expect = chai.expect
   ;
 
 

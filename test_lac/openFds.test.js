@@ -1,7 +1,14 @@
+// Node.js core modules
 var fs = require('fs')
-  , child_process = require('child_process')
+
+// Userland modules
   , async = require('async')
+
+// Local modules
   , NestDB = require('../lib/datastore')
+
+
+// Local variables
   , db = new NestDB({ filename: './workspace/openfds.db', autoload: true })
   , N = 64   // Half the allowed file descriptors
   , i, fds
@@ -18,6 +25,7 @@ function multipleOpen (filename, N, callback) {
               }
               , callback);
 }
+
 
 async.waterfall([
   // Check that ulimit has been set to the correct value
@@ -64,4 +72,3 @@ async.waterfall([
     });
   }
 ]);
-

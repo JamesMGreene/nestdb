@@ -1,7 +1,12 @@
-var should = require('chai').should()
-  , assert = require('chai').assert
+// Userland modules
+var chai = require('chai')
+
+// Local modules
   , customUtils = require('../lib/customUtils')
-  , fs = require('fs')
+
+
+// Local variables
+  , should = chai.should()
   ;
 
 

@@ -1,15 +1,20 @@
-var Datastore = require('../lib/datastore')
-  , benchDb = 'workspace/loaddb.bench.db'
-  , fs = require('fs')
-  , path = require('path')
-  , async = require('async')
-  , commonUtilities = require('./commonUtilities')
+// Userland modules
+var async = require('async')
   , execTime = require('exec-time')
+  , program = require('commander')
+
+// Local modules
+  , Datastore = require('../lib/datastore')
+  , commonUtilities = require('./commonUtilities')
+
+
+// Local variables
+  , benchDb = 'workspace/loaddb.bench.db'
   , profiler = new execTime('LOADDB BENCH')
   , d = new Datastore(benchDb)
-  , program = require('commander')
   , n
   ;
+
 
 program
   .option('-n --number [number]', 'Size of the collection to test on', parseInt)

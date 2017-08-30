@@ -1,15 +1,19 @@
-var Datastore = require('../lib/datastore')
-  , benchDb = 'workspace/find.bench.db'
-  , fs = require('fs')
-  , path = require('path')
-  , async = require('async')
+// Userland modules
+var async = require('async')
   , execTime = require('exec-time')
-  , profiler = new execTime('FIND BENCH')
+
+// Local modules
   , commonUtilities = require('./commonUtilities')
+
+
+// Local variables
+  , benchDb = 'workspace/find.bench.db'
+  , profiler = new execTime('FIND BENCH')
   , config = commonUtilities.getConfiguration(benchDb)
   , d = config.d
   , n = config.n
   ;
+
 
 async.waterfall([
   async.apply(commonUtilities.prepareDb, benchDb)

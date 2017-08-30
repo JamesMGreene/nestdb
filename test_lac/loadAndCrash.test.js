@@ -1,7 +1,10 @@
 /**
  * Load and modify part of fs to ensure writeFile will crash after writing 5000 bytes
  */
+
+// Node.js core modules
 var fs = require('fs');
+
 
 function rethrow() {
   // Only enable in debug mode. A backtrace uses ~1000 bytes of heap space and
@@ -112,12 +115,18 @@ fs.writeFile = function(path, data, options, callback_) {
   }
 };
 
-
-
-
+//
 // End of fs modification
-var NestDB = require('../lib/datastore.js')
+//
+
+
+// Local modules
+var NestDB = require('../lib/datastore')
+
+
+// Local variables
   , db = new NestDB({ filename: 'workspace/lac.db' })
   ;
+
 
 db.loadDatabase();

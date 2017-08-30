@@ -1,15 +1,23 @@
-var should = require('chai').should()
-  , assert = require('chai').assert
-  , testDb = 'workspace/test.db'
-  , fs = require('fs')
+// Node.js core modules
+var fs = require('fs')
   , path = require('path')
+
+// Userland modules
+  , chai = require('chai')
   , _ = require('underscore')
-  , findIndex = require('lodash.findindex')
   , async = require('async')
   , mkdirp = require('mkdirp')
+  , findIndex = require('lodash.findindex')
+
+// Local modules
   , model = require('../lib/model')
   , Datastore = require('../lib/datastore')
-  , Persistence = require('../lib/persistence')
+
+
+// Local variables
+  , should = chai.should()
+  , assert = chai.assert
+  , testDb = 'workspace/test.db'
   , reloadTimeUpperBound = 60;   // In ms, an upper bound for the reload time used to check createdAt and updatedAt
   ;
 

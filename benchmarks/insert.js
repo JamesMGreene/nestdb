@@ -1,13 +1,19 @@
-var Datastore = require('../lib/datastore')
-  , benchDb = 'workspace/insert.bench.db'
-  , async = require('async')
+// Userland modules
+var async = require('async')
   , execTime = require('exec-time')
-  , profiler = new execTime('INSERT BENCH')
+
+// Local modules
   , commonUtilities = require('./commonUtilities')
+
+
+// Local variables
+  , benchDb = 'workspace/insert.bench.db'
+  , profiler = new execTime('INSERT BENCH')
   , config = commonUtilities.getConfiguration(benchDb)
   , d = config.d
   , n = config.n
   ;
+
 
 async.waterfall([
   async.apply(commonUtilities.prepareDb, benchDb)

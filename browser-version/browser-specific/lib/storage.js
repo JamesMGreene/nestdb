@@ -6,7 +6,11 @@
  * This version is the browser version
  */
 
+ // Userland modules
 var localforage = require('localforage')
+
+
+// Local variables
   , storage = {}
   ;
 

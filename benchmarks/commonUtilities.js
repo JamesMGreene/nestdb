@@ -2,12 +2,20 @@
  * Functions that are used in several benchmark tests
  */
 
+// Node.js core modules
 var fs = require('fs')
   , path = require('path')
+
+// Userland modules
   , mkdirp = require('mkdirp')
   , async = require('async')
-  , executeAsap = async.setImmediate
+
+// Local modules
   , Datastore = require('../lib/datastore')
+
+
+// Local variables
+  , executeAsap = async.setImmediate
   ;
 
 
