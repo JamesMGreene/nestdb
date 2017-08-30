@@ -632,7 +632,7 @@ Datastore.prototype.getCandidates = function (query, dontExpireStaleDocs, callba
     // For a basic match
     usableQueryKeys = [];
     Object.keys(query).forEach(function (k) {
-      if (typeof query[k] === 'string' || typeof query[k] === 'number' || typeof query[k] === 'boolean' || util.isDate(query[k]) || query[k] === null) {
+      if (typeof query[k] === 'string' || typeof query[k] === 'number' || typeof query[k] === 'boolean' || _.isDate(query[k]) || query[k] === null) {
         usableQueryKeys.push(k);
       }
     });
@@ -677,7 +677,7 @@ Datastore.prototype.getCandidates = function (query, dontExpireStaleDocs, callba
     docs.forEach(function (doc) {
       var valid = true;
       ttlIndexesFieldNames.forEach(function (i) {
-        if (doc[i] !== undefined && util.isDate(doc[i]) && Date.now() > doc[i].getTime() + self.ttlIndexes[i] * 1000) {
+        if (doc[i] !== undefined && _.isDate(doc[i]) && Date.now() > doc[i].getTime() + self.ttlIndexes[i] * 1000) {
           valid = false;
         }
       });
@@ -712,7 +712,7 @@ Datastore.prototype._insert = function (newDoc, cb) {
           ;
         async.setImmediate(function () {
           if (!err) {
-            var newDocsArr = util.isArray(newDocs) ? newDocs : [newDocs];
+            var newDocsArr = Array.isArray(newDocs) ? newDocs : [newDocs];
 
             // Ensure there are listeners registered before making a bunch of unnecessary function calls to `emit`
             if (self.listeners('inserted').length > 0) {
@@ -734,7 +734,7 @@ Datastore.prototype._insert = function (newDoc, cb) {
     return callback(e);
   }
 
-  this.persistence.persistNewState(util.isArray(preparedDoc) ? preparedDoc : [preparedDoc], function (err) {
+  this.persistence.persistNewState(Array.isArray(preparedDoc) ? preparedDoc : [preparedDoc], function (err) {
     if (err) { return callback(err); }
     return callback(null, model.deepCopy(preparedDoc));
   });
@@ -762,7 +762,7 @@ Datastore.prototype.createNewId = function () {
 Datastore.prototype.prepareDocumentForInsertion = function (newDoc) {
   var preparedDoc, self = this;
 
-  if (util.isArray(newDoc)) {
+  if (Array.isArray(newDoc)) {
     preparedDoc = [];
     newDoc.forEach(function (doc) { preparedDoc.push(self.prepareDocumentForInsertion(doc)); });
   } else {
@@ -783,7 +783,7 @@ Datastore.prototype.prepareDocumentForInsertion = function (newDoc) {
  * @private
  */
 Datastore.prototype._insertInCache = function (preparedDoc) {
-  if (util.isArray(preparedDoc)) {
+  if (Array.isArray(preparedDoc)) {
     this._insertMultipleDocsInCache(preparedDoc);
   } else {
     this.addToIndexes(preparedDoc);
@@ -1308,7 +1308,6 @@ module.exports = Executor;
 var BinarySearchTree = require('binary-search-tree').AVLTree
   , model = require('./model')
   , _ = require('underscore')
-  , util = require('util')
   ;
 
 /**
@@ -1326,7 +1325,7 @@ function projectForUnique (elt) {
   if (typeof elt === 'string') { return '$string' + elt; }
   if (typeof elt === 'boolean') { return '$boolean' + elt; }
   if (typeof elt === 'number') { return '$number' + elt; }
-  if (util.isArray(elt)) { return '$date' + elt.getTime(); }
+  if (Array.isArray(elt)) { return '$date' + elt.getTime(); }
 
   return elt;   // Arrays and objects, will check for pointer equality
 }
@@ -1373,14 +1372,14 @@ Index.prototype.insert = function (doc) {
     , keys, i, failingI, error
     ;
 
-  if (util.isArray(doc)) { this.insertMultipleDocs(doc); return; }
+  if (Array.isArray(doc)) { this.insertMultipleDocs(doc); return; }
 
   key = model.getDotValue(doc, this.fieldName);
 
   // We don't index documents that don't contain the field if the index is sparse
   if (key === undefined && this.sparse) { return; }
 
-  if (!util.isArray(key)) {
+  if (!Array.isArray(key)) {
     this.tree.insert(key, doc);
   } else {
     // If an insert fails due to a unique constraint, roll back all inserts before it
@@ -1445,13 +1444,13 @@ Index.prototype.insertMultipleDocs = function (docs) {
 Index.prototype.remove = function (doc) {
   var key, self = this;
 
-  if (util.isArray(doc)) { doc.forEach(function (d) { self.remove(d); }); return; }
+  if (Array.isArray(doc)) { doc.forEach(function (d) { self.remove(d); }); return; }
 
   key = model.getDotValue(doc, this.fieldName);
 
   if (key === undefined && this.sparse) { return; }
 
-  if (!util.isArray(key)) {
+  if (!Array.isArray(key)) {
     this.tree.delete(key, doc);
   } else {
     _.uniq(key, projectForUnique).forEach(function (_key) {
@@ -1467,7 +1466,7 @@ Index.prototype.remove = function (doc) {
  * Naive implementation, still in O(log(n))
  */
 Index.prototype.update = function (oldDoc, newDoc) {
-  if (util.isArray(oldDoc)) { this.updateMultipleDocs(oldDoc); return; }
+  if (Array.isArray(oldDoc)) { this.updateMultipleDocs(oldDoc); return; }
 
   this.remove(oldDoc);
 
@@ -1526,7 +1525,7 @@ Index.prototype.updateMultipleDocs = function (pairs) {
 Index.prototype.revertUpdate = function (oldDoc, newDoc) {
   var revert = [];
 
-  if (!util.isArray(oldDoc)) {
+  if (!Array.isArray(oldDoc)) {
     this.update(newDoc, oldDoc);
   } else {
     oldDoc.forEach(function (pair) {
@@ -1545,7 +1544,7 @@ Index.prototype.revertUpdate = function (oldDoc, newDoc) {
 Index.prototype.getMatching = function (value) {
   var self = this;
 
-  if (!util.isArray(value)) {
+  if (!Array.isArray(value)) {
     return self.tree.search(value);
   } else {
     var _res = {}, res = [];
@@ -1600,7 +1599,7 @@ Index.prototype.getAll = function () {
 // Interface
 module.exports = Index;
 
-},{"./model":6,"binary-search-tree":10,"underscore":15,"util":21}],6:[function(require,module,exports){
+},{"./model":6,"binary-search-tree":10,"underscore":15}],6:[function(require,module,exports){
 /**
  * Handle models (i.e. docs)
  * Serialization/deserialization
@@ -1608,8 +1607,7 @@ module.exports = Index;
  * Querying, update
  */
 
-var util = require('util')
-  , _ = require('underscore')
+var _ = require('underscore')
   , modifierFunctions = {}
   , lastStepModifierFunctions = {}
   , comparisonFunctions = {}
@@ -1646,7 +1644,7 @@ function checkKey (k, v) {
  * Works by applying the above checkKey function to all fields recursively
  */
 function checkObject (obj) {
-  if (util.isArray(obj)) {
+  if (Array.isArray(obj)) {
     obj.forEach(function (o) {
       checkObject(o);
     });
@@ -1716,11 +1714,11 @@ function deepCopy (obj, strictKeys) {
        typeof obj === 'number' ||
        typeof obj === 'string' ||
        obj === null ||
-       (util.isDate(obj)) ) {
+       (_.isDate(obj)) ) {
     return obj;
   }
 
-  if (util.isArray(obj)) {
+  if (Array.isArray(obj)) {
     res = [];
     obj.forEach(function (o) { res.push(deepCopy(o, strictKeys)); });
     return res;
@@ -1749,8 +1747,8 @@ function isPrimitiveType (obj) {
        typeof obj === 'number' ||
        typeof obj === 'string' ||
        obj === null ||
-       util.isDate(obj) ||
-       util.isArray(obj));
+       _.isDate(obj) ||
+       Array.isArray(obj));
 }
 
 
@@ -1814,12 +1812,12 @@ function compareThings (a, b, _compareStrings) {
   if (typeof b === 'boolean') { return typeof a === 'boolean' ? compareNSB(a, b) : 1; }
 
   // Dates
-  if (util.isDate(a)) { return util.isDate(b) ? compareNSB(a.getTime(), b.getTime()) : -1; }
-  if (util.isDate(b)) { return util.isDate(a) ? compareNSB(a.getTime(), b.getTime()) : 1; }
+  if (_.isDate(a)) { return _.isDate(b) ? compareNSB(a.getTime(), b.getTime()) : -1; }
+  if (_.isDate(b)) { return _.isDate(a) ? compareNSB(a.getTime(), b.getTime()) : 1; }
 
   // Arrays (first element is most significant and so on)
-  if (util.isArray(a)) { return util.isArray(b) ? compareArrays(a, b) : -1; }
-  if (util.isArray(b)) { return util.isArray(a) ? compareArrays(a, b) : 1; }
+  if (Array.isArray(a)) { return Array.isArray(b) ? compareArrays(a, b) : -1; }
+  if (Array.isArray(b)) { return Array.isArray(a) ? compareArrays(a, b) : 1; }
 
   // Objects
   aKeys = Object.keys(a).sort();
@@ -1875,7 +1873,7 @@ lastStepModifierFunctions.$push = function (obj, field, value) {
   // Create the array if it doesn't exist
   if (!obj.hasOwnProperty(field)) { obj[field] = []; }
 
-  if (!util.isArray(obj[field])) { throw new Error("Can't $push an element on non-array values"); }
+  if (!Array.isArray(obj[field])) { throw new Error("Can't $push an element on non-array values"); }
 
   if (value !== null && typeof value === 'object' && value.$slice && value.$each === undefined) {
     value.$each = [];
@@ -1883,7 +1881,7 @@ lastStepModifierFunctions.$push = function (obj, field, value) {
 
   if (value !== null && typeof value === 'object' && value.$each) {
     if (Object.keys(value).length >= 3 || (Object.keys(value).length === 2 && value.$slice === undefined)) { throw new Error("Can only use $slice in cunjunction with $each when $push to array"); }
-    if (!util.isArray(value.$each)) { throw new Error("$each requires an array value"); }
+    if (!Array.isArray(value.$each)) { throw new Error("$each requires an array value"); }
 
     value.$each.forEach(function (v) {
       obj[field].push(v);
@@ -1921,11 +1919,11 @@ lastStepModifierFunctions.$addToSet = function (obj, field, value) {
   // Create the array if it doesn't exist
   if (!obj.hasOwnProperty(field)) { obj[field] = []; }
 
-  if (!util.isArray(obj[field])) { throw new Error("Can't $addToSet an element on non-array values"); }
+  if (!Array.isArray(obj[field])) { throw new Error("Can't $addToSet an element on non-array values"); }
 
   if (value !== null && typeof value === 'object' && value.$each) {
     if (Object.keys(value).length > 1) { throw new Error("Can't use another field in conjunction with $each"); }
-    if (!util.isArray(value.$each)) { throw new Error("$each requires an array value"); }
+    if (!Array.isArray(value.$each)) { throw new Error("$each requires an array value"); }
 
     value.$each.forEach(function (v) {
       lastStepModifierFunctions.$addToSet(obj, field, v);
@@ -1943,7 +1941,7 @@ lastStepModifierFunctions.$addToSet = function (obj, field, value) {
  * Remove the first or last element of an array
  */
 lastStepModifierFunctions.$pop = function (obj, field, value) {
-  if (!util.isArray(obj[field])) { throw new Error("Can't $pop an element from non-array values"); }
+  if (!Array.isArray(obj[field])) { throw new Error("Can't $pop an element from non-array values"); }
   if (typeof value !== 'number') { throw new Error(value + " isn't an integer, can't use it with $pop"); }
   if (value === 0) { return; }
 
@@ -1961,7 +1959,7 @@ lastStepModifierFunctions.$pop = function (obj, field, value) {
 lastStepModifierFunctions.$pull = function (obj, field, value) {
   var arr, i;
 
-  if (!util.isArray(obj[field])) { throw new Error("Can't $pull an element from non-array values"); }
+  if (!Array.isArray(obj[field])) { throw new Error("Can't $pull an element from non-array values"); }
 
   arr = obj[field];
   for (i = arr.length - 1; i >= 0; i -= 1) {
@@ -2103,7 +2101,7 @@ function getDotValue (obj, field) {
 
   if (fieldParts.length === 1) { return obj[fieldParts[0]]; }
 
-  if (util.isArray(obj[fieldParts[0]])) {
+  if (Array.isArray(obj[fieldParts[0]])) {
     // If the next field is an integer, return only this item of the array
     i = parseInt(fieldParts[1], 10);
     if (typeof i === 'number' && !isNaN(i)) {
@@ -2136,11 +2134,11 @@ function areThingsEqual (a, b) {
       b === null || typeof b === 'string' || typeof b === 'boolean' || typeof b === 'number') { return a === b; }
 
   // Dates
-  if (util.isDate(a) || util.isDate(b)) { return util.isDate(a) && util.isDate(b) && a.getTime() === b.getTime(); }
+  if (_.isDate(a) || _.isDate(b)) { return _.isDate(a) && _.isDate(b) && a.getTime() === b.getTime(); }
 
   // Arrays (no match since arrays are used as a $in)
   // undefined (no match since they mean field doesn't exist and can't be serialized)
-  if ((!(util.isArray(a) && util.isArray(b)) && (util.isArray(a) || util.isArray(b))) || a === undefined || b === undefined) { return false; }
+  if ((!(Array.isArray(a) && Array.isArray(b)) && (Array.isArray(a) || Array.isArray(b))) || a === undefined || b === undefined) { return false; }
 
   // General objects (check for deep equality)
   // a and b should be objects at this point
@@ -2164,8 +2162,8 @@ function areThingsEqual (a, b) {
  * Check that two values are comparable
  */
 function areComparable (a, b) {
-  if (typeof a !== 'string' && typeof a !== 'number' && !util.isDate(a) &&
-      typeof b !== 'string' && typeof b !== 'number' && !util.isDate(b)) {
+  if (typeof a !== 'string' && typeof a !== 'number' && !_.isDate(a) &&
+      typeof b !== 'string' && typeof b !== 'number' && !_.isDate(b)) {
     return false;
   }
 
@@ -2204,7 +2202,7 @@ comparisonFunctions.$ne = function (a, b) {
 comparisonFunctions.$in = function (a, b) {
   var i;
 
-  if (!util.isArray(b)) { throw new Error("$in operator called with a non-array"); }
+  if (!Array.isArray(b)) { throw new Error("$in operator called with a non-array"); }
 
   for (i = 0; i < b.length; i += 1) {
     if (areThingsEqual(a, b[i])) { return true; }
@@ -2214,13 +2212,13 @@ comparisonFunctions.$in = function (a, b) {
 };
 
 comparisonFunctions.$nin = function (a, b) {
-  if (!util.isArray(b)) { throw new Error("$nin operator called with a non-array"); }
+  if (!Array.isArray(b)) { throw new Error("$nin operator called with a non-array"); }
 
   return !comparisonFunctions.$in(a, b);
 };
 
 comparisonFunctions.$regex = function (a, b) {
-  if (!util.isRegExp(b)) { throw new Error("$regex operator called with non regular expression"); }
+  if (!_.isRegExp(b)) { throw new Error("$regex operator called with non regular expression"); }
 
   if (typeof a !== 'string') {
     return false
@@ -2245,13 +2243,13 @@ comparisonFunctions.$exists = function (value, exists) {
 
 // Specific to arrays
 comparisonFunctions.$size = function (obj, value) {
-    if (!util.isArray(obj)) { return false; }
+    if (!Array.isArray(obj)) { return false; }
     if (value % 1 !== 0) { throw new Error("$size operator called without an integer"); }
 
     return (obj.length == value);
 };
 comparisonFunctions.$elemMatch = function (obj, value) {
-  if (!util.isArray(obj)) { return false; }
+  if (!Array.isArray(obj)) { return false; }
   var i = obj.length;
   var result = false;   // Initialize result
   while (i--) {
@@ -2274,7 +2272,7 @@ arrayComparisonFunctions.$elemMatch = true;
 logicalOperators.$or = function (obj, query) {
   var i;
 
-  if (!util.isArray(query)) { throw new Error("$or operator used without an array"); }
+  if (!Array.isArray(query)) { throw new Error("$or operator used without an array"); }
 
   for (i = 0; i < query.length; i += 1) {
     if (match(obj, query[i])) { return true; }
@@ -2292,7 +2290,7 @@ logicalOperators.$or = function (obj, query) {
 logicalOperators.$and = function (obj, query) {
   var i;
 
-  if (!util.isArray(query)) { throw new Error("$and operator used without an array"); }
+  if (!Array.isArray(query)) { throw new Error("$and operator used without an array"); }
 
   for (i = 0; i < query.length; i += 1) {
     if (!match(obj, query[i])) { return false; }
@@ -2371,14 +2369,14 @@ function matchQueryPart (obj, queryKey, queryValue, treatObjAsValue) {
     , i, keys, firstChars, dollarFirstChars;
 
   // Check if the value is an array if we don't force a treatment as value
-  if (util.isArray(objValue) && !treatObjAsValue) {
+  if (Array.isArray(objValue) && !treatObjAsValue) {
     // If the queryValue is an array, try to perform an exact match
-    if (util.isArray(queryValue)) {
+    if (Array.isArray(queryValue)) {
       return matchQueryPart(obj, queryKey, queryValue, true);
     }
 
     // Check if we are using an array-specific comparison function
-    if (queryValue !== null && typeof queryValue === 'object' && !util.isRegExp(queryValue)) {
+    if (queryValue !== null && typeof queryValue === 'object' && !_.isRegExp(queryValue)) {
       keys = Object.keys(queryValue);
       for (i = 0; i < keys.length; i += 1) {
         if (arrayComparisonFunctions[keys[i]]) { return matchQueryPart(obj, queryKey, queryValue, true); }
@@ -2394,7 +2392,7 @@ function matchQueryPart (obj, queryKey, queryValue, treatObjAsValue) {
 
   // queryValue is an actual object. Determine whether it contains comparison operators
   // or only normal fields. Mixed objects are not allowed
-  if (queryValue !== null && typeof queryValue === 'object' && !util.isRegExp(queryValue) && !util.isArray(queryValue)) {
+  if (queryValue !== null && typeof queryValue === 'object' && !_.isRegExp(queryValue) && !Array.isArray(queryValue)) {
     keys = Object.keys(queryValue);
     firstChars = _.map(keys, function (item) { return item[0]; });
     dollarFirstChars = _.filter(firstChars, function (c) { return c === '$'; });
@@ -2415,7 +2413,7 @@ function matchQueryPart (obj, queryKey, queryValue, treatObjAsValue) {
   }
 
   // Using regular expressions with basic querying
-  if (util.isRegExp(queryValue)) { return comparisonFunctions.$regex(objValue, queryValue); }
+  if (_.isRegExp(queryValue)) { return comparisonFunctions.$regex(objValue, queryValue); }
 
   // queryValue is either a native value or a normal object
   // Basic matching is possible
@@ -2437,7 +2435,7 @@ module.exports.match = match;
 module.exports.areThingsEqual = areThingsEqual;
 module.exports.compareThings = compareThings;
 
-},{"underscore":15,"util":21}],7:[function(require,module,exports){
+},{"underscore":15}],7:[function(require,module,exports){
 /**
  * Handle every persistence-related task
  * The interface Datastore expects to be implemented is

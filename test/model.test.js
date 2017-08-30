@@ -4,7 +4,6 @@ var model = require('../lib/model')
   , expect = require('chai').expect
   , _ = require('underscore')
   , async = require('async')
-  , util = require('util')
   , Datastore = require('../lib/datastore')
   , fs = require('fs')
   ;
@@ -84,7 +83,7 @@ describe('Model', function () {
       c = model.deserialize(b);
       b.indexOf('\n').should.equal(-1);
       b.should.equal('{"test":{"$$date":' + d.getTime() + '}}');
-      util.isDate(c.test).should.equal(true);
+      _.isDate(c.test).should.equal(true);
       c.test.getTime().should.equal(d.getTime());
     });
 
