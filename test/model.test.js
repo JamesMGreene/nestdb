@@ -1135,7 +1135,7 @@ describe('Model', function () {
         }).should.throw();
       });
 
-      it('Can use the $regex operator in cunjunction with other operators', function () {
+      it('Can use the $regex operator in conjunction with other operators', function () {
         model.match({ test: 'helLo' }, { test: { $regex: /ll/i, $nin: ['helL', 'helLop'] } }).should.equal(true);
         model.match({ test: 'helLo' }, { test: { $regex: /ll/i, $nin: ['helLo', 'helLop'] } }).should.equal(false);
       });

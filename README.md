@@ -627,7 +627,7 @@ db.update({ _id: 'id6' }, { $push: { fruits: { $each: ['banana', 'orange'] } } }
   // Now the fruits array is ['apple', 'orange', 'pear', 'banana', 'orange']
 });
 
-// $slice can be used in cunjunction with $push and $each to limit the size of the resulting array.
+// $slice can be used in conjunction with $push and $each to limit the size of the resulting array.
 // A value of 0 will update the array to an empty array. A positive value n will keep only the n first elements
 // A negative value -n will keep only the last n elements.
 // If $slice is specified but not $each, $each is set to []
