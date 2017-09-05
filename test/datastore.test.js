@@ -145,6 +145,28 @@ describe('Datastore', function () {
     });
   });
 
+  it('Custom ID Generator', function (done) {
+    var lastId
+      , db = new Datastore({ idGenerator: function() { lastId = '' + Date.now(); return lastId; } })
+      ;
+
+    db.insert({ foo: 'bar' }, function (err1, doc1) {
+      assert.isNull(err1);
+      doc1._id.should.equal(lastId);
+      doc1._id.should.match(/^\d+$/);
+
+      // No delay is needed here since, if the ID already exists, it will just keep generating a new one until it differs
+      db.insert({ foo: 'baz' }, function (err2, doc2) {
+        assert.isNull(err2);
+        doc2._id.should.equal(lastId);
+        doc2._id.should.match(/^\d+$/);
+        doc2._id.should.not.equal(doc1._id);
+        parseInt(doc2._id, 10).should.be.greaterThan(parseInt(doc1._id, 10));
+        done();
+      });
+    });
+  });
+
   describe('Autoloading', function () {
 
     it('Can autoload a database and query it right away', function (done) {

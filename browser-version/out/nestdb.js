@@ -315,7 +315,9 @@ var util = require('util')
  * @param {Boolean} options.inMemoryOnly Optional, defaults to false
  * @param {Boolean} options.autoload Optional, defaults to false
  * @param {Function} options.onload Optional, if autoload is used this will be called after the load database with the error object as parameter. If you don't pass it the error will be thrown
- * @param {Function} options.afterSerialization/options.beforeDeserialization Optional, serialization hooks
+ * @param {Function} options.idGenerator Optional, if set, this function will be used for generating IDs. It takes no arguments and should return a unique string.
+ * @param {Function} options.afterSerialization Optional, serialization hook. Must be symmetrical to `options.beforeDeserialization`.
+ * @param {Function} options.beforeDeserialization Optional, deserialization hook. Must be symmetrical to options.afterSerialization`.
  * @param {Number} options.corruptAlertThreshold Optional, threshold after which an alert is thrown if too much data is corrupt
  * @param {Function} options.compareStrings Optional, string comparison function that overrides default for sorting
  * @param {Object} options.storage Optional, custom storage engine for the database files. Must implement all methods exported by the standard "storage" module included in NestDB
@@ -370,6 +372,9 @@ function Datastore(options) {
   this.inMemoryOnly = options.inMemoryOnly || false;
   this.autoload = options.autoload || false;
   this.timestampData = options.timestampData || false;
+  if (typeof options.idGenerator === 'function') {
+    this._idGenerator = options.idGenerator;
+  }
 
   // Determine whether in memory or persistent
   if (!filename || typeof filename !== 'string' || filename.length === 0) {
@@ -751,14 +756,26 @@ Datastore.prototype._insert = function (newDoc, cb) {
 
 
 /**
+ * Default implementation for generating a unique _id
+ * @protected
+ */
+Datastore.prototype._idGenerator = function () {
+  return customUtils.uid(16);
+};
+
+
+/**
  * Create a new _id that's not already in use
  */
 Datastore.prototype.createNewId = function () {
-  var tentativeId = customUtils.uid(16);
+  var tentativeId;
+
   // Try as many times as needed to get an unused _id. As explained in customUtils, the probability of this ever happening is extremely small, so this is O(1)
-  if (this.indexes._id.getMatching(tentativeId).length > 0) {
-    tentativeId = this.createNewId();
+  do {
+    tentativeId = this._idGenerator();
   }
+  while (this.indexes._id.getMatching(tentativeId).length > 0);
+
   return tentativeId;
 };
 
