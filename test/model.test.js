@@ -1125,6 +1125,24 @@ describe('Model', function () {
         model.match({ test: 'true' }, { test: { $regex: /t[ru]e/ } }).should.equal(false);
       });
 
+      it('Can match strings using the $regex operator with a globally matching RegExp', function () {
+        var globalRegExp = /a.*r/gi;
+
+        model.match({ test: 'true' }, { test: { $regex: globalRegExp } }).should.equal(false);
+        globalRegExp.lastIndex.should.equal(0);
+        model.match({ test: 'Dark Souls' }, { test: { $regex: globalRegExp } }).should.equal(true);
+        globalRegExp.lastIndex.should.equal(3);
+        model.match({ test: 'Perfect Dark' }, { test: { $regex: globalRegExp } }).should.equal(true);
+        globalRegExp.lastIndex.should.equal(11);
+        // If the following fails, it means the `lastIndex` was not reset for the global RegExp between match attempts
+        model.match({ test: 'Darkest Dungeon' }, { test: { $regex: globalRegExp } }).should.equal(true);
+        globalRegExp.lastIndex.should.equal(3);
+        model.match({ test: 'Castle in the Darkness' }, { test: { $regex: globalRegExp } }).should.equal(true);
+        globalRegExp.lastIndex.should.equal(17);
+        model.match({ test: 'true' }, { test: { $regex: globalRegExp } }).should.equal(false);
+        globalRegExp.lastIndex.should.equal(0);
+      });
+
       it('Will throw if $regex operator is used with a non regex value', function () {
         (function () {
           model.match({ test: 'true' }, { test: { $regex: 42 } })
