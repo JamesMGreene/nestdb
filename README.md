@@ -908,11 +908,28 @@ This function must accept the following exact invocation: `storage.init(file, ca
 The function's return value is irrelevant.
 
 
-#### `storage.read`
+#### `storage.readAsStream` OR `storage.read`
 
 **Purpose:** Read all contents from a datafile during the initial loading process for a datastore. The datafile should separate its records using `"\n"` as the delimiting character.
 
+NOTE: You must implement **ONE** of the following two interface options. If both are implemented, the `storage.readAsStream` function will always be preferred.
+
 ##### Interface
+
+###### Option 1: `storage.readAsStream`
+
+**IMPORTANT:** If present, this implementation is always preferred over `storage.read`.
+
+This function must accept the following exact invocation: `var stream = storage.readAsStream(file)`
+
+ - `file`: Required. A String representing the path to a datafile.
+
+The function's return value must be a Readable Stream that emits `"data"` and `"end"` events, as well as `"error"` events if relevant. When a `"data"` event is received, its String contents will be turned into records by splitting on the `"\n"` delimiting characters.
+
+
+###### Option 2: `storage.read`
+
+**IMPORTANT:** This implementation will only be used if `storage.readAsStream` is **NOT** provided. It is less preferrable but is allowed for environments where constructing streams is more difficult.
 
 This function must accept the following exact invocation: `storage.read(file, callback)`
 

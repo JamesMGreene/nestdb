@@ -12,6 +12,7 @@ var should = require('chai').should()
   , Persistence = require('../lib/persistence')
   , storage = require('../lib/storage')
   , child_process = require('child_process')
+  , through2 = require('through2')
 ;
 
 
@@ -961,5 +962,49 @@ describe('Persistence', function () {
     });
 
   });   // ==== End of 'destroyDatabase' ====
+
+
+  describe('storage.writeAsStream', function () {
+    var _write, _writeAsStream;
+
+    before(function () {
+      _write = storage.write;
+      _writeAsStream = storage.writeAsStream;
+    });
+
+    after(function () {
+      storage.write = _write;
+      storage.writeAsStream = _writeAsStream;
+    });
+
+
+    it('should be used when available', function (done) {
+      var streamWriteCalled = false;
+
+      storage.write = function () {
+        throw new Error('Unexpected call to `storage.write` instead of `storage.writeAsStream`');
+      };
+
+      storage.writeAsStream = function () {
+        var streamErr
+          , testTransformer = through2(function(chunk, encoding, callback) {
+              streamWriteCalled = true;
+              callback(null, chunk);
+            })
+          , realWriteStream = _writeAsStream.apply(storage, arguments);
+
+        testTransformer.pipe(realWriteStream);
+        testTransformer.on('error', function(err) { streamErr = err; });
+        testTransformer.on('finish', function() { done(streamErr); });
+        return testTransformer;
+      };
+
+      d.insert({ hello: 'world' });
+
+      // Force the writing by compacting the database
+      d.persistence.compactDatafile();
+    });
+
+  });   // ==== End of 'storage.writeAsStream' ====
 
 });
