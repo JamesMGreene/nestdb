@@ -9,10 +9,6 @@ cache:
   directories:
     - node_modules
 
-install:
-  - npm install -g npm@latest
-  - npm install
-
 script:
   - npm test
   - npm run build
