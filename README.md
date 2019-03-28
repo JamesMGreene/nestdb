@@ -3,7 +3,7 @@
 
 ## The Node.js Embedded JavaScript Database
 
-**Embedded persistent or in memory database for Node.js, nw.js, Electron and browsers, written in 100% JavaScript, no binary dependency**. API is a subset of MongoDB's and it's <a href="#speed">plenty fast</a>.
+**Embedded persistent or in memory database for Node.js, nw.js, Electron and browsers, written in 100% JavaScript, no binary dependency**. Originally forked from NeDB. API is similar to MongoDB's and it's <a href="#speed">plenty fast</a>.
 
 **IMPORTANT NOTE**: Please don't submit issues for questions regarding your code. Only actual bugs or feature requests will be answered, all others will be closed without comment. Also, please follow the <a href="#bug-reporting-guidelines">bug reporting guidelines</a> and check the <a href="https://github.com/louischatriot/nedb/wiki/Change-log" target="_blank">change log</a> before submitting an already fixed bug :)
 
@@ -29,8 +29,16 @@ $ bower install nestdb --save    # Main files under "./browser-version/out/"
 ```
 
 
+## Compatibility with NeDB
+NestDB was originally forked from NeDB.
+
+NestDB `v2.x` will maintain backward compatibility with NeDB `v1.x` to make for seamless transitions migrating from NeDB to NestDB.
+
+When we eventually release NestDB `v3.x`, it will _**not**_ be backward compatible with NeDB `v1.x`.
+
+
 ## API
-It is a subset of MongoDB's API (the most used operations).
+It is similar to MongoDB's API (the most used operations). The NestDB API is a superset of NeDB's API.
 
 * <a href="#creatingloading-a-datastore">Creating/loading a datastore</a>
 * <a href="#persistence">Persistence</a>
@@ -1013,7 +1021,7 @@ expected kind of data sets (20MB for 10,000 2KB documents).
 * <a href="https://github.com/louischatriot/connect-nedb-session" target="_blank">connect-nedb-session</a> is a session store for Connect and Express, backed by nedb
 * If you mostly use NeDB for logging purposes and don't want the memory footprint of your application to grow too large, you can use <a href="https://github.com/louischatriot/nedb-logger" target="_blank">NeDB Logger</a> to insert documents in a NeDB-readable datastore
 * If you've outgrown NeDB, switching to MongoDB won't be too hard as it is the same API. Use <a href="https://github.com/louischatriot/nedb-to-mongodb" target="_blank">this utility</a> to transfer the data from a NeDB datastore to a MongoDB collection
-* An ODM for NestDB: <a href="https://github.com/scottwrobinson/camo" target="_blank">Camo</a>
+* An ODM for NeDB: <a href="https://github.com/scottwrobinson/camo" target="_blank">Camo</a>
 
 ## Pull requests
 If you submit a pull request, thanks! There are a couple rules to follow though to make it manageable:
