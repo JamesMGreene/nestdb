@@ -1,2 +1,2 @@
 ulimit -n 128
-node ./test_lac/openFds.test.js
+node -r esm ./test_lac/openFds.test.js

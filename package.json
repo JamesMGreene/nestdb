@@ -33,14 +33,16 @@
     "type": "git",
     "url": "git@github.com:JamesMGreene/nestdb.git"
   },
-  "main": "index.js",
+  "main": "esm/datastore.js",
   "scripts": {
-    "build": "node browser-version/build.js",
+    "build": "node -r esm browser-version/build.js",
+    "lint": "standard",
     "test": "mocha"
   },
   "dependencies": {
     "async": "^1.5.2",
     "binary-search-tree": "^0.2.6",
+    "esm": "^3.2.25",
     "localforage": "^1.5.0",
     "mkdirp": "^0.5.1",
     "underscore": "~1.4.4"
@@ -50,15 +52,23 @@
     "browserify": "^14.4.0",
     "chai": "^4.1.1",
     "commander": "^2.11.0",
+    "esmify": "^2.1.1",
     "exec-time": "^0.0.4",
     "fs-extra": "^4.0.1",
     "get-stream": "^3.0.0",
     "lodash.findindex": "^4.6.0",
     "mocha": "^3.5.0",
+    "standard": "^12.0.1",
     "uglify-js": "^3.0.27"
   },
   "browser": {
     "./lib/customUtils.js": "./browser-version/browser-specific/lib/customUtils.js",
     "./lib/storage.js": "./browser-version/browser-specific/lib/storage.js"
+  },
+  "standard": {
+    "ignore": [
+      "/browser-version/**/*.js",
+      "/benchmarks/**/*.js"
+    ]
   }
 }

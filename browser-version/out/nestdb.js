@@ -1,16 +1,22 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.NestDB = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = Cursor;
+
+var _underscore = _interopRequireDefault(require("underscore"));
+
+var _model = _interopRequireDefault(require("./model"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 /**
  * Manage access to data, be it to find, update or remove it
  */
-
 // Userland modules
-var _ = require('underscore')
-
 // Local modules
-  , model = require('./model')
-  ;
-
-
 
 /**
  * Create a new cursor for this collection
@@ -18,101 +24,118 @@ var _ = require('underscore')
  * @param {Query} query - The query this cursor will operate on
  * @param {Function} execFn - Handler to be executed after cursor has found the results and before the callback passed to find/findOne/update/remove
  */
-function Cursor (db, query, execFn) {
+function Cursor(db, query, execFn) {
   this.db = db;
   this.query = query || {};
-  if (execFn) { this.execFn = execFn; }
+
+  if (execFn) {
+    this.execFn = execFn;
+  }
 }
-
-
 /**
  * Set a limit to the number of results
  */
-Cursor.prototype.limit = function(limit) {
+
+
+Cursor.prototype.limit = function (limit) {
   this._limit = limit;
   return this;
 };
-
-
 /**
  * Skip a the number of results
  */
-Cursor.prototype.skip = function(skip) {
+
+
+Cursor.prototype.skip = function (skip) {
   this._skip = skip;
   return this;
 };
-
-
 /**
  * Sort results of the query
  * @param {SortQuery} sortQuery - SortQuery is { field: order }, field can use the dot-notation, order is 1 for ascending and -1 for descending
  */
-Cursor.prototype.sort = function(sortQuery) {
+
+
+Cursor.prototype.sort = function (sortQuery) {
   this._sort = sortQuery;
   return this;
 };
-
-
 /**
  * Add the use of a projection
  * @param {Object} projection - MongoDB-style projection. {} means take all fields. Then it's { key1: 1, key2: 1 } to take only key1 and key2
  *                              { key1: 0, key2: 0 } to omit only key1 and key2. Except _id, you can't mix takes and omits
  */
-Cursor.prototype.projection = function(projection) {
+
+
+Cursor.prototype.projection = function (projection) {
   this._projection = projection;
   return this;
 };
-
-
 /**
  * Apply the projection
  */
+
+
 Cursor.prototype.project = function (candidates) {
-  var res = [], self = this
-    , keepId, action, keys
-    ;
+  var res = [];
+  var self = this;
+  var keepId;
+  var action;
+  var keys;
 
   if (this._projection === undefined || Object.keys(this._projection).length === 0) {
     return candidates;
   }
 
-  keepId = this._projection._id === 0 ? false : true;
-  this._projection = _.omit(this._projection, '_id');
+  keepId = this._projection._id !== 0;
+  this._projection = _underscore.default.omit(this._projection, '_id'); // Check for consistency
 
-  // Check for consistency
   keys = Object.keys(this._projection);
   keys.forEach(function (k) {
-    if (action !== undefined && self._projection[k] !== action) { throw new Error("Can't both keep and omit fields except for _id"); }
-    action = self._projection[k];
-  });
+    if (action !== undefined && self._projection[k] !== action) {
+      throw new Error("Can't both keep and omit fields except for _id");
+    }
 
-  // Do the actual projection
+    action = self._projection[k];
+  }); // Do the actual projection
+
   candidates.forEach(function (candidate) {
     var toPush;
-    if (action === 1) {   // pick-type projection
-      toPush = { $set: {} };
+
+    if (action === 1) {
+      // pick-type projection
+      toPush = {
+        $set: {}
+      };
       keys.forEach(function (k) {
-        toPush.$set[k] = model.getDotValue(candidate, k);
-        if (toPush.$set[k] === undefined) { delete toPush.$set[k]; }
+        toPush.$set[k] = _model.default.getDotValue(candidate, k);
+
+        if (toPush.$set[k] === undefined) {
+          delete toPush.$set[k];
+        }
       });
-      toPush = model.modify({}, toPush);
-    } else {   // omit-type projection
-      toPush = { $unset: {} };
-      keys.forEach(function (k) { toPush.$unset[k] = true });
-      toPush = model.modify(candidate, toPush);
+      toPush = _model.default.modify({}, toPush);
+    } else {
+      // omit-type projection
+      toPush = {
+        $unset: {}
+      };
+      keys.forEach(function (k) {
+        toPush.$unset[k] = true;
+      });
+      toPush = _model.default.modify(candidate, toPush);
     }
+
     if (keepId) {
       toPush._id = candidate._id;
     } else {
       delete toPush._id;
     }
+
     res.push(toPush);
   });
-
   return res;
 };
-
-
 /**
  * Get all matching elements
  * Will return pointers to matched elements (shallow copies), returning full copies is the role of find or findOne
@@ -120,13 +143,19 @@ Cursor.prototype.project = function (candidates) {
  *
  * @param {Function} callback - Signature: err, results
  */
-Cursor.prototype._exec = function(_callback) {
-  var res = [], added = 0, skipped = 0, self = this
-    , error = null
-    , i, keys, key
-    ;
 
-  function callback (error, res) {
+
+Cursor.prototype._exec = function (_callback) {
+  var res = [];
+  var added = 0;
+  var skipped = 0;
+  var self = this;
+  var error = null;
+  var i;
+  var keys;
+  var key;
+
+  function callback(error, res) {
     if (self.execFn) {
       return self.execFn(error, res, _callback);
     } else {
@@ -135,11 +164,13 @@ Cursor.prototype._exec = function(_callback) {
   }
 
   this.db.getCandidates(this.query, function (err, candidates) {
-    if (err) { return callback(err); }
+    if (err) {
+      return callback(err);
+    }
 
     try {
       for (i = 0; i < candidates.length; i += 1) {
-        if (model.match(candidates[i], self.query)) {
+        if (_model.default.match(candidates[i], self.query)) {
           // If a sort is defined, wait for the results to be sorted before applying limit and skip
           if (!self._sort) {
             if (self._skip && self._skip > skipped) {
@@ -147,7 +178,10 @@ Cursor.prototype._exec = function(_callback) {
             } else {
               res.push(candidates[i]);
               added += 1;
-              if (self._limit && self._limit <= added) { break; }
+
+              if (self._limit && self._limit <= added) {
+                break;
+              }
             }
           } else {
             res.push(candidates[i]);
@@ -156,38 +190,43 @@ Cursor.prototype._exec = function(_callback) {
       }
     } catch (err) {
       return callback(err);
-    }
+    } // Apply all sorts
 
-    // Apply all sorts
+
     if (self._sort) {
-      keys = Object.keys(self._sort);
+      keys = Object.keys(self._sort); // Sorting
 
-      // Sorting
       var criteria = [];
+
       for (i = 0; i < keys.length; i++) {
         key = keys[i];
-        criteria.push({ key: key, direction: self._sort[key] });
+        criteria.push({
+          key: key,
+          direction: self._sort[key]
+        });
       }
-      res.sort(function(a, b) {
+
+      res.sort(function (a, b) {
         var criterion, compare, i;
+
         for (i = 0; i < criteria.length; i++) {
           criterion = criteria[i];
-          compare = criterion.direction * model.compareThings(model.getDotValue(a, criterion.key), model.getDotValue(b, criterion.key), self.db.compareStrings);
+          compare = criterion.direction * _model.default.compareThings(_model.default.getDotValue(a, criterion.key), _model.default.getDotValue(b, criterion.key), self.db.compareStrings);
+
           if (compare !== 0) {
             return compare;
           }
         }
+
         return 0;
-      });
+      }); // Applying limit and skip
 
-      // Applying limit and skip
-      var limit = self._limit || res.length
-        , skip = self._skip || 0;
-
+      var limit = self._limit || res.length;
+      var skip = self._skip || 0;
       res = res.slice(skip, skip + limit);
-    }
+    } // Apply projection
 
-    // Apply projection
+
     try {
       res = self.project(res);
     } catch (e) {
@@ -200,13 +239,12 @@ Cursor.prototype._exec = function(_callback) {
 };
 
 Cursor.prototype.exec = function () {
-  this.db.executor.push({ this: this, fn: this._exec, arguments: arguments });
+  this.db.executor.push({
+    this: this,
+    fn: this._exec,
+    arguments: arguments
+  });
 };
-
-
-
-// Interface
-module.exports = Cursor;
 
 },{"./model":6,"underscore":15}],2:[function(require,module,exports){
 /**
@@ -219,17 +257,16 @@ module.exports = Cursor;
  * NOTE: Math.random() does not guarantee "cryptographic quality" but we actually don't need it
  */
 function randomBytes (size) {
-  var bytes = new Array(size);
-  var r;
+  var bytes = new Array(size)
+  var r
 
   for (var i = 0, r; i < size; i++) {
-    if ((i & 0x03) == 0) r = Math.random() * 0x100000000;
-    bytes[i] = r >>> ((i & 0x03) << 3) & 0xff;
+    if ((i & 0x03) == 0) r = Math.random() * 0x100000000
+    bytes[i] = r >>> ((i & 0x03) << 3) & 0xff
   }
 
-  return bytes;
+  return bytes
 }
-
 
 /**
  * Taken from the base64-js module
@@ -237,40 +274,40 @@ function randomBytes (size) {
  */
 function byteArrayToBase64 (uint8) {
   var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-    , extraBytes = uint8.length % 3   // if we have 1 byte left, pad 2 bytes
-    , output = ""
-    , temp, length, i;
+
+  var extraBytes = uint8.length % 3 // if we have 1 byte left, pad 2 bytes
+  var output = ''
+  var temp; var length; var i
 
   function tripletToBase64 (num) {
-    return lookup[num >> 18 & 0x3F] + lookup[num >> 12 & 0x3F] + lookup[num >> 6 & 0x3F] + lookup[num & 0x3F];
+    return lookup[num >> 18 & 0x3F] + lookup[num >> 12 & 0x3F] + lookup[num >> 6 & 0x3F] + lookup[num & 0x3F]
   };
 
   // go through the array every three bytes, we'll deal with trailing stuff later
   for (i = 0, length = uint8.length - extraBytes; i < length; i += 3) {
-    temp = (uint8[i] << 16) + (uint8[i + 1] << 8) + (uint8[i + 2]);
-    output += tripletToBase64(temp);
+    temp = (uint8[i] << 16) + (uint8[i + 1] << 8) + (uint8[i + 2])
+    output += tripletToBase64(temp)
   }
 
   // pad the end with zeros, but make sure to not forget the extra bytes
   switch (extraBytes) {
     case 1:
-      temp = uint8[uint8.length - 1];
-      output += lookup[temp >> 2];
-      output += lookup[(temp << 4) & 0x3F];
-      output += '==';
-      break;
+      temp = uint8[uint8.length - 1]
+      output += lookup[temp >> 2]
+      output += lookup[(temp << 4) & 0x3F]
+      output += '=='
+      break
     case 2:
-      temp = (uint8[uint8.length - 2] << 8) + (uint8[uint8.length - 1]);
-      output += lookup[temp >> 10];
-      output += lookup[(temp >> 4) & 0x3F];
-      output += lookup[(temp << 2) & 0x3F];
-      output += '=';
-      break;
+      temp = (uint8[uint8.length - 2] << 8) + (uint8[uint8.length - 1])
+      output += lookup[temp >> 10]
+      output += lookup[(temp >> 4) & 0x3F]
+      output += lookup[(temp << 2) & 0x3F]
+      output += '='
+      break
   }
 
-  return output;
+  return output
 }
-
 
 /**
  * Return a random alphanumerical string of length len
@@ -281,31 +318,44 @@ function byteArrayToBase64 (uint8) {
  * See http://en.wikipedia.org/wiki/Birthday_problem
  */
 function uid (len) {
-  return byteArrayToBase64(randomBytes(Math.ceil(Math.max(8, len * 2)))).replace(/[+\/]/g, '').slice(0, len);
+  return byteArrayToBase64(randomBytes(Math.ceil(Math.max(8, len * 2)))).replace(/[+\/]/g, '').slice(0, len)
 }
 
-
-
-module.exports.uid = uid;
+module.exports.uid = uid
 
 },{}],3:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = Datastore;
+
+var _util = _interopRequireDefault(require("util"));
+
+var _events = _interopRequireDefault(require("events"));
+
+var _async = _interopRequireDefault(require("async"));
+
+var _underscore = _interopRequireDefault(require("underscore"));
+
+var _customUtils = _interopRequireDefault(require("./customUtils"));
+
+var _model = _interopRequireDefault(require("./model"));
+
+var _executor = _interopRequireDefault(require("./executor"));
+
+var _indexes = _interopRequireDefault(require("./indexes"));
+
+var _persistence = _interopRequireDefault(require("./persistence"));
+
+var _cursor = _interopRequireDefault(require("./cursor"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 // Node.js core modules
-var util = require('util')
-  , EventEmitter = require('events')
-
 // Userland modules
-  , async = require('async')
-  , _ = require('underscore')
-
 // Local modules
-  , customUtils = require('./customUtils')
-  , model = require('./model')
-  , Executor = require('./executor')
-  , Index = require('./indexes')
-  , Persistence = require('./persistence')
-  , Cursor = require('./cursor')
-  ;
-
 
 /**
  * Create a new collection
@@ -365,71 +415,72 @@ function Datastore(options) {
     return new Datastore(options);
   }
 
-  EventEmitter.call(this);
+  _events.default.call(this);
 
   options = options || {};
   var filename = options.filename;
   this.inMemoryOnly = options.inMemoryOnly || false;
   this.autoload = options.autoload || false;
   this.timestampData = options.timestampData || false;
+
   if (typeof options.idGenerator === 'function') {
     this._idGenerator = options.idGenerator;
-  }
+  } // Determine whether in memory or persistent
 
-  // Determine whether in memory or persistent
+
   if (!filename || typeof filename !== 'string' || filename.length === 0) {
     this.filename = null;
     this.inMemoryOnly = true;
   } else {
     this.filename = filename;
-  }
+  } // String comparison function
 
-  // String comparison function
-  this.compareStrings = options.compareStrings;
 
-  // Persistence handling
-  this.persistence = new Persistence({ db: this
-                                      , afterSerialization: options.afterSerialization
-                                      , beforeDeserialization: options.beforeDeserialization
-                                      , corruptAlertThreshold: options.corruptAlertThreshold
-                                      , storage: options.storage
-                                      });
+  this.compareStrings = options.compareStrings; // Persistence handling
 
-  // This new executor is ready if we don't use persistence
+  this.persistence = new _persistence.default({
+    db: this,
+    afterSerialization: options.afterSerialization,
+    beforeDeserialization: options.beforeDeserialization,
+    corruptAlertThreshold: options.corruptAlertThreshold,
+    storage: options.storage
+  }); // This new executor is ready if we don't use persistence
   // If we do, it will only be ready once `load` is called
-  this.executor = new Executor();
-  if (this.inMemoryOnly) { this.executor.ready = true; }
 
-  // Indexed by field name, dot notation can be used
+  this.executor = new _executor.default();
+
+  if (this.inMemoryOnly) {
+    this.executor.ready = true;
+  } // Indexed by field name, dot notation can be used
   // _id is always indexed and since _ids are generated randomly the underlying
   // binary is always well-balanced
-  this.indexes = {};
-  this.indexes._id = new Index({ fieldName: '_id', unique: true });
-  this.ttlIndexes = {};
 
-  // Queue a load of the database right away and call the onload handler
+
+  this.indexes = {};
+  this.indexes._id = new _indexes.default({
+    fieldName: '_id',
+    unique: true
+  });
+  this.ttlIndexes = {}; // Queue a load of the database right away and call the onload handler
   // By default (no onload handler), if there is an error there, no operation will be possible so warn the user by throwing an exception
+
   if (this.autoload) {
     this.load(options.onload);
   }
 }
 
-util.inherits(Datastore, EventEmitter);
-
-
-//
+_util.default.inherits(Datastore, _events.default); //
 // Also forcibly alter the Datastore (NeDB) object itself to be a static EventEmitter
 //
-EventEmitter.call(Datastore);
-
-Object.keys(EventEmitter.prototype)
-  .forEach(function (key) {
-    if (typeof EventEmitter.prototype[key] === 'function') {
-      Datastore[key] = EventEmitter.prototype[key].bind(Datastore);
-    }
-  });
 
 
+_events.default.call(Datastore);
+
+Object.keys(_events.default.prototype).forEach(function (key) {
+  if (typeof _events.default.prototype[key] === 'function') {
+    Datastore[key] = _events.default.prototype[key].bind(Datastore);
+  }
+});
 /**
  * Load the database from the datafile, and trigger the execution of buffered commands if any
  *
@@ -437,55 +488,64 @@ Object.keys(EventEmitter.prototype)
  * @fires Datastore#loaded
  * @fires Datastore#compacted
  */
+
 Datastore.prototype.load = function (cb) {
-  var self = this
-    , callback = cb || function (err) { if (err) { throw err; } }
-    , eventedCallback = function (err) {
-        async.setImmediate(function () {
-          if (!err) {
-            // Ensure there are listeners registered before making any unnecessary function calls to `emit`
-            if (self.constructor.listeners('created').length > 0) {
-              self.constructor.emit('created', self);
-            }
-            if (self.listeners('loaded').length > 0) {
-              self.emit('loaded');
-            }
-          }
-          callback(err);
-        });
-      };
+  var self = this;
 
-  this.executor.push({ this: this.persistence, fn: this.persistence.loadDatabase, arguments: [eventedCallback] }, true);
+  var callback = cb || function (err) {
+    if (err) {
+      throw err;
+    }
+  };
+
+  var eventedCallback = function (err) {
+    _async.default.setImmediate(function () {
+      if (!err) {
+        // Ensure there are listeners registered before making any unnecessary function calls to `emit`
+        if (self.constructor.listeners('created').length > 0) {
+          self.constructor.emit('created', self);
+        }
+
+        if (self.listeners('loaded').length > 0) {
+          self.emit('loaded');
+        }
+      }
+
+      callback(err);
+    });
+  };
+
+  this.executor.push({
+    this: this.persistence,
+    fn: this.persistence.loadDatabase,
+    arguments: [eventedCallback]
+  }, true);
 };
-
-
 /**
  * Backward compatibility with NeDB
  * @deprecated
  */
+
+
 Datastore.prototype.loadDatabase = Datastore.prototype.load;
-
-
 /**
  * Get an array of all the data in the database
  */
+
 Datastore.prototype.getAllData = function () {
   return this.indexes._id.getAll();
 };
-
-
 /**
  * Reset all currently defined indexes
  */
+
+
 Datastore.prototype.resetIndexes = function (newData) {
   var self = this;
-
   Object.keys(this.indexes).forEach(function (i) {
     self.indexes[i].reset(newData);
   });
 };
-
-
 /**
  * Ensure an index is kept for this field. Same parameters as lib/indexes
  * For now this function is synchronous, we need to test how much time it takes
@@ -496,61 +556,81 @@ Datastore.prototype.resetIndexes = function (newData) {
  * @param {Number} options.expireAfterSeconds - Optional, if set this index becomes a TTL index (only works on Date fields, not arrays of Date)
  * @param {Function} cb Optional callback, signature: err
  */
+
+
 Datastore.prototype.ensureIndex = function (options, cb) {
-  var err
-    , callback = cb || function () {};
+  var err;
+
+  var callback = cb || function () {};
 
   options = options || {};
 
   if (!options.fieldName) {
-    err = new Error("Cannot create an index without a fieldName");
+    err = new Error('Cannot create an index without a fieldName');
     err.missingFieldName = true;
     return callback(err);
   }
-  if (this.indexes[options.fieldName]) { return callback(null); }
 
-  this.indexes[options.fieldName] = new Index(options);
-  if (options.expireAfterSeconds !== undefined) { this.ttlIndexes[options.fieldName] = options.expireAfterSeconds; }   // With this implementation index creation is not necessary to ensure TTL but we stick with MongoDB's API here
+  if (this.indexes[options.fieldName]) {
+    return callback(null);
+  }
+
+  this.indexes[options.fieldName] = new _indexes.default(options);
+
+  if (options.expireAfterSeconds !== undefined) {
+    this.ttlIndexes[options.fieldName] = options.expireAfterSeconds;
+  } // With this implementation index creation is not necessary to ensure TTL but we stick with MongoDB's API here
+
 
   try {
     this.indexes[options.fieldName].insert(this.getAllData());
   } catch (e) {
     delete this.indexes[options.fieldName];
     return callback(e);
-  }
+  } // We may want to force all options to be persisted including defaults, not just the ones passed the index creation function
 
-  // We may want to force all options to be persisted including defaults, not just the ones passed the index creation function
-  this.persistence.persistNewState([{ $$indexCreated: options }], function (err) {
-    if (err) { return callback(err); }
+
+  this.persistence.persistNewState([{
+    $$indexCreated: options
+  }], function (err) {
+    if (err) {
+      return callback(err);
+    }
+
     return callback(null);
   });
 };
-
-
 /**
  * Remove an index
  * @param {String} fieldName
  * @param {Function} cb Optional callback, signature: err
  */
+
+
 Datastore.prototype.removeIndex = function (fieldName, cb) {
   var callback = cb || function () {};
 
   delete this.indexes[fieldName];
+  this.persistence.persistNewState([{
+    $$indexRemoved: fieldName
+  }], function (err) {
+    if (err) {
+      return callback(err);
+    }
 
-  this.persistence.persistNewState([{ $$indexRemoved: fieldName }], function (err) {
-    if (err) { return callback(err); }
     return callback(null);
   });
 };
-
-
 /**
  * Add one or several document(s) to all indexes
  */
+
+
 Datastore.prototype.addToIndexes = function (doc) {
-  var i, failingIndex, error
-    , keys = Object.keys(this.indexes)
-    ;
+  var i;
+  var failingIndex;
+  var error;
+  var keys = Object.keys(this.indexes);
 
   for (i = 0; i < keys.length; i += 1) {
     try {
@@ -560,9 +640,9 @@ Datastore.prototype.addToIndexes = function (doc) {
       error = e;
       break;
     }
-  }
+  } // If an error happened, we need to rollback the insert on all other indexes
 
-  // If an error happened, we need to rollback the insert on all other indexes
+
   if (error) {
     for (i = 0; i < failingIndex; i += 1) {
       this.indexes[keys[i]].remove(doc);
@@ -571,29 +651,29 @@ Datastore.prototype.addToIndexes = function (doc) {
     throw error;
   }
 };
-
-
 /**
  * Remove one or several document(s) from all indexes
  */
+
+
 Datastore.prototype.removeFromIndexes = function (doc) {
   var self = this;
-
   Object.keys(this.indexes).forEach(function (i) {
     self.indexes[i].remove(doc);
   });
 };
-
-
 /**
  * Update one or several documents in all indexes
  * To update multiple documents, oldDoc must be an array of { oldDoc, newDoc } pairs
  * If one update violates a constraint, all changes are rolled back
  */
+
+
 Datastore.prototype.updateIndexes = function (oldDoc, newDoc) {
-  var i, failingIndex, error
-    , keys = Object.keys(this.indexes)
-    ;
+  var i;
+  var failingIndex;
+  var error;
+  var keys = Object.keys(this.indexes);
 
   for (i = 0; i < keys.length; i += 1) {
     try {
@@ -603,9 +683,9 @@ Datastore.prototype.updateIndexes = function (oldDoc, newDoc) {
       error = e;
       break;
     }
-  }
+  } // If an error happened, we need to rollback the update on all other indexes
 
-  // If an error happened, we need to rollback the update on all other indexes
+
   if (error) {
     for (i = 0; i < failingIndex; i += 1) {
       this.indexes[keys[i]].revertUpdate(oldDoc, newDoc);
@@ -614,8 +694,6 @@ Datastore.prototype.updateIndexes = function (oldDoc, newDoc) {
     throw error;
   }
 };
-
-
 /**
  * Return the list of candidates for a given query
  * Crude implementation for now, we return the candidates given by the first usable index if any
@@ -629,185 +707,217 @@ Datastore.prototype.updateIndexes = function (oldDoc, newDoc) {
  * @param {Boolean} dontExpireStaleDocs Optional, defaults to false, if true don't remove stale docs. Useful for the remove function which shouldn't be impacted by expirations
  * @param {Function} callback Signature err, candidates
  */
+
+
 Datastore.prototype.getCandidates = function (query, dontExpireStaleDocs, callback) {
-  var indexNames = Object.keys(this.indexes)
-    , self = this
-    , usableQueryKeys;
+  var indexNames = Object.keys(this.indexes);
+  var self = this;
+  var usableQueryKeys;
 
   if (typeof dontExpireStaleDocs === 'function') {
     callback = dontExpireStaleDocs;
     dontExpireStaleDocs = false;
   }
 
-
-  async.waterfall([
-  // STEP 1: get candidates list by checking indexes from most to least frequent usecase
+  _async.default.waterfall([// STEP 1: get candidates list by checking indexes from most to least frequent usecase
   function (cb) {
     // For a basic match
     usableQueryKeys = [];
     Object.keys(query).forEach(function (k) {
-      if (typeof query[k] === 'string' || typeof query[k] === 'number' || typeof query[k] === 'boolean' || _.isDate(query[k]) || query[k] === null) {
+      if (typeof query[k] === 'string' || typeof query[k] === 'number' || typeof query[k] === 'boolean' || _underscore.default.isDate(query[k]) || query[k] === null) {
         usableQueryKeys.push(k);
       }
     });
-    usableQueryKeys = _.intersection(usableQueryKeys, indexNames);
+    usableQueryKeys = _underscore.default.intersection(usableQueryKeys, indexNames);
+
     if (usableQueryKeys.length > 0) {
       return cb(null, self.indexes[usableQueryKeys[0]].getMatching(query[usableQueryKeys[0]]));
-    }
+    } // For a $in match
 
-    // For a $in match
+
     usableQueryKeys = [];
     Object.keys(query).forEach(function (k) {
       if (query[k] && query[k].hasOwnProperty('$in')) {
         usableQueryKeys.push(k);
       }
     });
-    usableQueryKeys = _.intersection(usableQueryKeys, indexNames);
+    usableQueryKeys = _underscore.default.intersection(usableQueryKeys, indexNames);
+
     if (usableQueryKeys.length > 0) {
       return cb(null, self.indexes[usableQueryKeys[0]].getMatching(query[usableQueryKeys[0]].$in));
-    }
+    } // For a comparison match
 
-    // For a comparison match
+
     usableQueryKeys = [];
     Object.keys(query).forEach(function (k) {
       if (query[k] && (query[k].hasOwnProperty('$lt') || query[k].hasOwnProperty('$lte') || query[k].hasOwnProperty('$gt') || query[k].hasOwnProperty('$gte'))) {
         usableQueryKeys.push(k);
       }
     });
-    usableQueryKeys = _.intersection(usableQueryKeys, indexNames);
+    usableQueryKeys = _underscore.default.intersection(usableQueryKeys, indexNames);
+
     if (usableQueryKeys.length > 0) {
       return cb(null, self.indexes[usableQueryKeys[0]].getBetweenBounds(query[usableQueryKeys[0]]));
+    } // By default, return all the DB data
+
+
+    return cb(null, self.getAllData());
+  }, // STEP 2: remove all expired documents
+  function (docs) {
+    if (dontExpireStaleDocs) {
+      return callback(null, docs);
     }
 
-    // By default, return all the DB data
-    return cb(null, self.getAllData());
-  }
-  // STEP 2: remove all expired documents
-  , function (docs) {
-    if (dontExpireStaleDocs) { return callback(null, docs); }
-
-    var expiredDocsIds = [], validDocs = [], ttlIndexesFieldNames = Object.keys(self.ttlIndexes);
-
+    var expiredDocsIds = [];
+    var validDocs = [];
+    var ttlIndexesFieldNames = Object.keys(self.ttlIndexes);
     docs.forEach(function (doc) {
       var valid = true;
       ttlIndexesFieldNames.forEach(function (i) {
-        if (doc[i] !== undefined && _.isDate(doc[i]) && Date.now() > doc[i].getTime() + self.ttlIndexes[i] * 1000) {
+        if (doc[i] !== undefined && _underscore.default.isDate(doc[i]) && Date.now() > doc[i].getTime() + self.ttlIndexes[i] * 1000) {
           valid = false;
         }
       });
-      if (valid) { validDocs.push(doc); } else { expiredDocsIds.push(doc._id); }
+
+      if (valid) {
+        validDocs.push(doc);
+      } else {
+        expiredDocsIds.push(doc._id);
+      }
     });
 
-    async.eachSeries(expiredDocsIds, function (_id, cb) {
-      self._remove({ _id: _id }, {}, function (err) {
-        if (err) { return callback(err); }
+    _async.default.eachSeries(expiredDocsIds, function (_id, cb) {
+      self._remove({
+        _id: _id
+      }, {}, function (err) {
+        if (err) {
+          return callback(err);
+        }
+
         return cb();
       });
     }, function (err) {
+      if (err) return callback(err);
       return callback(null, validDocs);
     });
   }]);
 };
-
-
 /**
  * Insert a new document
  *
  * @private
  * @see Datastore#insert
  */
+
+
 Datastore.prototype._insert = function (newDoc, cb) {
-  var preparedDoc
-    , self = this
-    , origCallback = cb || function () {}
-    , callback = function (err, newDocs) {
-        var context = this
-          , args = arguments
-          ;
-        async.setImmediate(function () {
-          if (!err) {
-            var newDocsArr = Array.isArray(newDocs) ? newDocs : [newDocs];
+  var preparedDoc;
+  var self = this;
 
-            // Ensure there are listeners registered before making a bunch of unnecessary function calls to `emit`
-            if (self.listeners('inserted').length > 0) {
-              newDocsArr.forEach(function (newDoc) {
-                self.emit('inserted', newDoc);
-              });
-            }
-          }
+  var origCallback = cb || function () {};
 
-          origCallback.apply(context, args);
-        });
+  var callback = function (err, newDocs) {
+    var context = this;
+    var args = arguments;
+
+    _async.default.setImmediate(function () {
+      if (!err) {
+        var newDocsArr = Array.isArray(newDocs) ? newDocs : [newDocs]; // Ensure there are listeners registered before making a bunch of unnecessary function calls to `emit`
+
+        if (self.listeners('inserted').length > 0) {
+          newDocsArr.forEach(function (newDoc) {
+            self.emit('inserted', newDoc);
+          });
+        }
       }
-    ;
+
+      origCallback.apply(context, args);
+    });
+  };
 
   try {
-    preparedDoc = this.prepareDocumentForInsertion(newDoc)
+    preparedDoc = this.prepareDocumentForInsertion(newDoc);
+
     this._insertInCache(preparedDoc);
   } catch (e) {
     return callback(e);
   }
 
   this.persistence.persistNewState(Array.isArray(preparedDoc) ? preparedDoc : [preparedDoc], function (err) {
-    if (err) { return callback(err); }
-    return callback(null, model.deepCopy(preparedDoc));
+    if (err) {
+      return callback(err);
+    }
+
+    return callback(null, _model.default.deepCopy(preparedDoc));
   });
 };
-
-
 /**
  * Default implementation for generating a unique _id
  * @protected
  */
+
+
 Datastore.prototype._idGenerator = function () {
-  return customUtils.uid(16);
+  return _customUtils.default.uid(16);
 };
-
-
 /**
  * Create a new _id that's not already in use
  */
-Datastore.prototype.createNewId = function () {
-  var tentativeId;
 
-  // Try as many times as needed to get an unused _id. As explained in customUtils, the probability of this ever happening is extremely small, so this is O(1)
+
+Datastore.prototype.createNewId = function () {
+  var tentativeId; // Try as many times as needed to get an unused _id. As explained in customUtils, the probability of this ever happening is extremely small, so this is O(1)
+
   do {
     tentativeId = this._idGenerator();
-  }
-  while (this.indexes._id.getMatching(tentativeId).length > 0);
+  } while (this.indexes._id.getMatching(tentativeId).length > 0);
 
   return tentativeId;
 };
-
-
 /**
  * Prepare a document (or array of documents) to be inserted in a database
  * Meaning adds _id and timestamps if necessary on a copy of newDoc to avoid any side effect on user input
  * @private
  */
+
+
 Datastore.prototype.prepareDocumentForInsertion = function (newDoc) {
-  var preparedDoc, self = this;
+  var preparedDoc;
+  var self = this;
 
   if (Array.isArray(newDoc)) {
     preparedDoc = [];
-    newDoc.forEach(function (doc) { preparedDoc.push(self.prepareDocumentForInsertion(doc)); });
+    newDoc.forEach(function (doc) {
+      preparedDoc.push(self.prepareDocumentForInsertion(doc));
+    });
   } else {
-    preparedDoc = model.deepCopy(newDoc);
-    if (preparedDoc._id === undefined) { preparedDoc._id = this.createNewId(); }
+    preparedDoc = _model.default.deepCopy(newDoc);
+
+    if (preparedDoc._id === undefined) {
+      preparedDoc._id = this.createNewId();
+    }
+
     var now = new Date();
-    if (this.timestampData && preparedDoc.createdAt === undefined) { preparedDoc.createdAt = now; }
-    if (this.timestampData && preparedDoc.updatedAt === undefined) { preparedDoc.updatedAt = now; }
-    model.checkObject(preparedDoc);
+
+    if (this.timestampData && preparedDoc.createdAt === undefined) {
+      preparedDoc.createdAt = now;
+    }
+
+    if (this.timestampData && preparedDoc.updatedAt === undefined) {
+      preparedDoc.updatedAt = now;
+    }
+
+    _model.default.checkObject(preparedDoc);
   }
 
   return preparedDoc;
 };
-
-
 /**
  * If newDoc is an array of documents, this will insert all documents in the cache
  * @private
  */
+
+
 Datastore.prototype._insertInCache = function (preparedDoc) {
   if (Array.isArray(preparedDoc)) {
     this._insertMultipleDocsInCache(preparedDoc);
@@ -815,13 +925,13 @@ Datastore.prototype._insertInCache = function (preparedDoc) {
     this.addToIndexes(preparedDoc);
   }
 };
-
-
 /**
  * If one insertion fails (e.g. because of a unique constraint), roll back all previous
  * inserts and throws the error
  * @private
  */
+
+
 Datastore.prototype._insertMultipleDocsInCache = function (preparedDocs) {
   var i, failingI, error;
 
@@ -843,8 +953,6 @@ Datastore.prototype._insertMultipleDocsInCache = function (preparedDocs) {
     throw error;
   }
 };
-
-
 /**
  * Insert a new document
  *
@@ -853,18 +961,27 @@ Datastore.prototype._insertMultipleDocsInCache = function (preparedDocs) {
  *
  * @fires Datastore#inserted
  */
+
+
 Datastore.prototype.insert = function () {
-  this.executor.push({ this: this, fn: this._insert, arguments: arguments });
+  this.executor.push({
+    this: this,
+    fn: this._insert,
+    arguments: arguments
+  });
 };
-
-
 /**
  * Count all documents matching the query
  * @param {Object} query MongoDB-style query
  */
-Datastore.prototype.count = function(query, callback) {
-  var cursor = new Cursor(this, query, function(err, docs, callback) {
-    if (err) { return callback(err); }
+
+
+Datastore.prototype.count = function (query, callback) {
+  var cursor = new _cursor.default(this, query, function (err, docs, callback) {
+    if (err) {
+      return callback(err);
+    }
+
     return callback(null, docs.length);
   });
 
@@ -874,210 +991,259 @@ Datastore.prototype.count = function(query, callback) {
     return cursor;
   }
 };
-
-
 /**
  * Find all documents matching the query
  * If no callback is passed, we return the cursor so that user can limit, skip and finally exec
  * @param {Object} query MongoDB-style query
  * @param {Object} projection MongoDB-style projection
  */
+
+
 Datastore.prototype.find = function (query, projection, callback) {
   switch (arguments.length) {
     case 1:
-      projection = {};
-      // callback is undefined, will return a cursor
+      projection = {}; // callback is undefined, will return a cursor
+
       break;
+
     case 2:
       if (typeof projection === 'function') {
         callback = projection;
         projection = {};
-      }   // If not assume projection is an object and callback undefined
+      } // If not assume projection is an object and callback undefined
+
+
       break;
   }
 
-  var cursor = new Cursor(this, query, function(err, docs, callback) {
-    var res = [], i;
+  var cursor = new _cursor.default(this, query, function (err, docs, callback) {
+    var res = [];
+    var i;
 
-    if (err) { return callback(err); }
+    if (err) {
+      return callback(err);
+    }
 
     for (i = 0; i < docs.length; i += 1) {
-      res.push(model.deepCopy(docs[i]));
+      res.push(_model.default.deepCopy(docs[i]));
     }
+
     return callback(null, res);
   });
-
   cursor.projection(projection);
+
   if (typeof callback === 'function') {
     cursor.exec(callback);
   } else {
     return cursor;
   }
 };
-
-
 /**
  * Find one document matching the query
  * @param {Object} query MongoDB-style query
  * @param {Object} projection MongoDB-style projection
  */
+
+
 Datastore.prototype.findOne = function (query, projection, callback) {
   switch (arguments.length) {
     case 1:
-      projection = {};
-      // callback is undefined, will return a cursor
+      projection = {}; // callback is undefined, will return a cursor
+
       break;
+
     case 2:
       if (typeof projection === 'function') {
         callback = projection;
         projection = {};
-      }   // If not assume projection is an object and callback undefined
+      } // If not assume projection is an object and callback undefined
+
+
       break;
   }
 
-  var cursor = new Cursor(this, query, function(err, docs, callback) {
-    if (err) { return callback(err); }
+  var cursor = new _cursor.default(this, query, function (err, docs, callback) {
+    if (err) {
+      return callback(err);
+    }
+
     if (docs.length === 1) {
-      return callback(null, model.deepCopy(docs[0]));
+      return callback(null, _model.default.deepCopy(docs[0]));
     } else {
       return callback(null, null);
     }
   });
-
   cursor.projection(projection).limit(1);
+
   if (typeof callback === 'function') {
     cursor.exec(callback);
   } else {
     return cursor;
   }
 };
-
-
 /**
  * Update all docs matching query
  *
  * @private
  * @see Datastore#update
  */
-Datastore.prototype._update = function (query, updateQuery, options, cb) {
-  var callback
-    , self = this
-    , numReplaced = 0
-    , multi
-    , upsert
-    , i
-    ;
 
-  if (typeof options === 'function') { cb = options; options = {}; }
+
+Datastore.prototype._update = function (query, updateQuery, options, cb) {
+  var callback;
+  var self = this;
+  var numReplaced = 0;
+  var multi;
+  var upsert;
+  var i;
+
+  if (typeof options === 'function') {
+    cb = options;
+    options = {};
+  }
+
   callback = cb || function () {};
+
   multi = options.multi !== undefined ? options.multi : false;
   upsert = options.upsert !== undefined ? options.upsert : false;
 
-  async.waterfall([
-  function (cb) {   // If upsert option is set, check whether we need to insert the doc
-    if (!upsert) { return cb(); }
+  _async.default.waterfall([function (cb) {
+    // If upsert option is set, check whether we need to insert the doc
+    if (!upsert) {
+      return cb();
+    } // Need to use an internal function not tied to the executor to avoid deadlock
 
-    // Need to use an internal function not tied to the executor to avoid deadlock
-    var cursor = new Cursor(self, query);
+
+    var cursor = new _cursor.default(self, query);
+
     cursor.limit(1)._exec(function (err, docs) {
-      if (err) { return callback(err); }
+      if (err) {
+        return callback(err);
+      }
+
       if (docs.length === 1) {
         return cb();
       } else {
         var toBeInserted;
 
         try {
-          model.checkObject(updateQuery);
-          // updateQuery is a simple object with no modifier, use it as the document to insert
+          _model.default.checkObject(updateQuery); // updateQuery is a simple object with no modifier, use it as the document to insert
+
+
           toBeInserted = updateQuery;
         } catch (e) {
           // updateQuery contains modifiers, use the find query as the base,
           // strip it from all operators and update it according to updateQuery
           try {
-            toBeInserted = model.modify(model.deepCopy(query, true), updateQuery);
+            toBeInserted = _model.default.modify(_model.default.deepCopy(query, true), updateQuery);
           } catch (err) {
             return callback(err);
           }
         }
 
         return self._insert(toBeInserted, function (err, newDoc) {
-          if (err) { return callback(err); }
+          if (err) {
+            return callback(err);
+          }
+
           return callback(null, 1, newDoc, true);
         });
       }
     });
-  }
-  , function () {   // Perform the update
-    var modifiedDoc
-      , modifications = []
-      , createdAt
-      , eventedCallback = function(err /*, numReplaced, updatedDocs, upserted */) {
-          var context = this
-            , args = arguments
-            ;
-          async.setImmediate(function () {
-            if (!err) {
-              if (modifications && modifications.length > 0) {
-                // Ensure there are listeners registered before making a bunch of unnecessary function calls to `emit`
-                if (self.listeners('updated').length > 0) {
-                  modifications.forEach(function (mod) {
-                    self.emit('updated', mod.newDoc, mod.oldDoc);
-                  });
-                }
-              }
-            }
+  }, function () {
+    // Perform the update
+    var modifiedDoc;
+    var modifications = [];
+    var createdAt;
 
-            callback.apply(context, args);
-          });
+    var eventedCallback = function (err
+    /*, numReplaced, updatedDocs, upserted */
+    ) {
+      var context = this;
+      var args = arguments;
+
+      _async.default.setImmediate(function () {
+        if (!err) {
+          if (modifications && modifications.length > 0) {
+            // Ensure there are listeners registered before making a bunch of unnecessary function calls to `emit`
+            if (self.listeners('updated').length > 0) {
+              modifications.forEach(function (mod) {
+                self.emit('updated', mod.newDoc, mod.oldDoc);
+              });
+            }
+          }
         }
-      ;
+
+        callback.apply(context, args);
+      });
+    };
 
     self.getCandidates(query, function (err, candidates) {
-      if (err) { return eventedCallback(err); }
-
-      // Preparing update (if an error is thrown here neither the datafile nor
+      if (err) {
+        return eventedCallback(err);
+      } // Preparing update (if an error is thrown here neither the datafile nor
       // the in-memory indexes are affected)
+
+
       try {
         for (i = 0; i < candidates.length; i += 1) {
-          if (model.match(candidates[i], query) && (multi || numReplaced === 0)) {
+          if (_model.default.match(candidates[i], query) && (multi || numReplaced === 0)) {
             numReplaced += 1;
-            if (self.timestampData) { createdAt = candidates[i].createdAt; }
-            modifiedDoc = model.modify(candidates[i], updateQuery);
+
+            if (self.timestampData) {
+              createdAt = candidates[i].createdAt;
+            }
+
+            modifiedDoc = _model.default.modify(candidates[i], updateQuery);
+
             if (self.timestampData) {
               modifiedDoc.createdAt = createdAt;
               modifiedDoc.updatedAt = new Date();
             }
-            modifications.push({ oldDoc: candidates[i], newDoc: modifiedDoc });
+
+            modifications.push({
+              oldDoc: candidates[i],
+              newDoc: modifiedDoc
+            });
           }
         }
       } catch (err) {
         return eventedCallback(err);
-      }
+      } // Change the docs in memory
 
-      // Change the docs in memory
+
       try {
         self.updateIndexes(modifications);
       } catch (err) {
         return eventedCallback(err);
-      }
+      } // Update the datafile
 
-      // Update the datafile
-      var updatedDocs = _.pluck(modifications, 'newDoc');
+
+      var updatedDocs = _underscore.default.pluck(modifications, 'newDoc');
+
       self.persistence.persistNewState(updatedDocs, function (err) {
-        if (err) { return eventedCallback(err); }
+        if (err) {
+          return eventedCallback(err);
+        }
+
         if (!options.returnUpdatedDocs) {
           return eventedCallback(null, numReplaced);
         } else {
           var updatedDocsDC = [];
-          updatedDocs.forEach(function (doc) { updatedDocsDC.push(model.deepCopy(doc)); });
-          if (!multi) { updatedDocsDC = updatedDocsDC[0]; }
+          updatedDocs.forEach(function (doc) {
+            updatedDocsDC.push(_model.default.deepCopy(doc));
+          });
+
+          if (!multi) {
+            updatedDocsDC = updatedDocsDC[0];
+          }
+
           return eventedCallback(null, numReplaced, updatedDocsDC);
         }
       });
     });
   }]);
 };
-
 /**
  * Update all docs matching query
  *
@@ -1098,36 +1264,48 @@ Datastore.prototype._update = function (query, updateQuery, options, cb) {
  * @fires Datastore#updated
  * @fires Datastore#inserted
  */
+
+
 Datastore.prototype.update = function () {
-  this.executor.push({ this: this, fn: this._update, arguments: arguments });
+  this.executor.push({
+    this: this,
+    fn: this._update,
+    arguments: arguments
+  });
 };
-
-
 /**
  * Remove all docs matching the query
  *
  * @private
  * @see Datastore#remove
  */
-Datastore.prototype._remove = function (query, options, cb) {
-  var origCallback
-    , callback
-    , self = this
-    , numRemoved = 0
-    , removalDocs = []
-    , removedFullDocs = []
-    , multi
-    ;
 
-  if (typeof options === 'function') { cb = options; options = {}; }
+
+Datastore.prototype._remove = function (query, options, cb) {
+  var origCallback;
+  var callback;
+  var self = this;
+  var numRemoved = 0;
+  var removalDocs = [];
+  var removedFullDocs = [];
+  var multi;
+
+  if (typeof options === 'function') {
+    cb = options;
+    options = {};
+  }
+
   origCallback = cb || function () {};
+
   multi = options.multi !== undefined ? options.multi : false;
 
-  callback = function(err /*, numRemoved */) {
-    var context = this
-      , args = arguments
-      ;
-    async.setImmediate(function () {
+  callback = function (err
+  /*, numRemoved */
+  ) {
+    var context = this;
+    var args = arguments;
+
+    _async.default.setImmediate(function () {
       if (!err) {
         if (removedFullDocs && removedFullDocs.length > 0) {
           // Ensure there are listeners registered before making a bunch of unnecessary function calls to `emit`
@@ -1144,27 +1322,35 @@ Datastore.prototype._remove = function (query, options, cb) {
   };
 
   this.getCandidates(query, true, function (err, candidates) {
-    if (err) { return callback(err); }
+    if (err) {
+      return callback(err);
+    }
 
     try {
       candidates.forEach(function (d) {
-        if (model.match(d, query) && (multi || numRemoved === 0)) {
+        if (_model.default.match(d, query) && (multi || numRemoved === 0)) {
           numRemoved += 1;
-          removalDocs.push({ $$deleted: true, _id: d._id });
+          removalDocs.push({
+            $$deleted: true,
+            _id: d._id
+          });
           removedFullDocs.push(d);
           self.removeFromIndexes(d);
         }
       });
-    } catch (err) { return callback(err); }
+    } catch (err) {
+      return callback(err);
+    }
 
     self.persistence.persistNewState(removalDocs, function (err) {
-      if (err) { return callback(err); }
+      if (err) {
+        return callback(err);
+      }
+
       return callback(null, numRemoved);
     });
   });
 };
-
-
 /**
  * Remove all docs matching the query
  *
@@ -1176,11 +1362,14 @@ Datastore.prototype._remove = function (query, options, cb) {
  * @fires Datastore#removed
  */
 
+
 Datastore.prototype.remove = function () {
-  this.executor.push({ this: this, fn: this._remove, arguments: arguments });
+  this.executor.push({
+    this: this,
+    fn: this._remove,
+    arguments: arguments
+  });
 };
-
-
 /**
  * Remove all docs and then destroy the database's persistent datafile, if any
  *
@@ -1189,11 +1378,18 @@ Datastore.prototype.remove = function () {
  * @private
  * @see Datastore#destroy
  */
-Datastore.prototype._destroy = function (cb) {
-  var self = this
-    , callback = cb || function () {};
 
-  self._remove({}, { multi: true }, function (err /*, numRemoved */) {
+
+Datastore.prototype._destroy = function (cb) {
+  var self = this;
+
+  var callback = cb || function () {};
+
+  self._remove({}, {
+    multi: true
+  }, function (err
+  /*, numRemoved */
+  ) {
     if (err) {
       return callback(err);
     }
@@ -1201,8 +1397,6 @@ Datastore.prototype._destroy = function (cb) {
     self.persistence.destroyDatabase(callback);
   });
 };
-
-
 /**
  * Remove all docs and then destroy the database's persistent datafile, if any
  *
@@ -1211,92 +1405,109 @@ Datastore.prototype._destroy = function (cb) {
  * @fires Datastore#destroyed
  * @fires Datastore.destroyed
  */
+
+
 Datastore.prototype.destroy = function (cb) {
-  var self = this
-    , callback = cb || function () {}
-    , eventedCallback = function (err) {
-        async.setImmediate(function () {
-          if (!err) {
-            // Ensure there are listeners registered before making any unnecessary function calls to `emit`
-            if (self.listeners('destroyed').length > 0) {
-              self.emit('destroyed');
-            }
-            if (self.constructor.listeners('destroyed').length > 0) {
-              self.constructor.emit('destroyed', self);
-            }
-          }
-          callback(err);
-        });
-      };
+  var self = this;
 
-  this.executor.push({ this: this, fn: this._destroy, arguments: [eventedCallback] });
+  var callback = cb || function () {};
+
+  var eventedCallback = function (err) {
+    _async.default.setImmediate(function () {
+      if (!err) {
+        // Ensure there are listeners registered before making any unnecessary function calls to `emit`
+        if (self.listeners('destroyed').length > 0) {
+          self.emit('destroyed');
+        }
+
+        if (self.constructor.listeners('destroyed').length > 0) {
+          self.constructor.emit('destroyed', self);
+        }
+      }
+
+      callback(err);
+    });
+  };
+
+  this.executor.push({
+    this: this,
+    fn: this._destroy,
+    arguments: [eventedCallback]
+  });
 };
-
-
 /**
  * Augment `Datastore` with user-defined extensions/patches
  * @param {Function|Object} ext Must either be a function that takes one argument of `Datastore`, or a non-empty object
  */
+
+
 Datastore.plugin = function (ext) {
-  if (typeof ext === 'function') { // function style for plugins
+  if (typeof ext === 'function') {
+    // function style for plugins
     ext(Datastore);
-  } else if (typeof ext !== 'object' || !ext || Object.keys(ext).length === 0){
-    throw new Error('Invalid plugin: got \"' + ext + '\", expected an object or a function');
+  } else if (typeof ext !== 'object' || !ext || Object.keys(ext).length === 0) {
+    throw new Error('Invalid plugin: got "' + ext + '", expected an object or a function');
   } else {
-    Object.keys(ext).forEach(function (id) { // object style for plugins
+    Object.keys(ext).forEach(function (id) {
+      // object style for plugins
       Datastore.prototype[id] = ext[id];
     });
   }
+
   return Datastore;
 };
 
-
-
-module.exports = Datastore;
-
 },{"./cursor":1,"./customUtils":2,"./executor":4,"./indexes":5,"./model":6,"./persistence":7,"async":9,"events":16,"underscore":15,"util":21}],4:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = Executor;
+
+var _async = _interopRequireDefault(require("async"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 /**
  * Responsible for sequentially executing actions on the database
  */
-
- // Userland modules
-var async = require('async')
-  ;
-
-
-function Executor () {
+// Userland modules
+function Executor() {
   this.buffer = [];
-  this.ready = false;
+  this.ready = false; // This queue will execute all commands, one-by-one in order
 
-  // This queue will execute all commands, one-by-one in order
-  this.queue = async.queue(function (task, cb) {
-    var newArguments = [];
+  this.queue = _async.default.queue(function (task, cb) {
+    var newArguments = []; // task.arguments is an array-like object on which adding a new field doesn't work, so we transform it into a real array
 
-    // task.arguments is an array-like object on which adding a new field doesn't work, so we transform it into a real array
-    for (var i = 0; i < task.arguments.length; i += 1) { newArguments.push(task.arguments[i]); }
-    var lastArg = task.arguments[task.arguments.length - 1];
+    for (var i = 0; i < task.arguments.length; i += 1) {
+      newArguments.push(task.arguments[i]);
+    }
 
-    // Always tell the queue task is complete. Execute callback if any was given.
+    var lastArg = task.arguments[task.arguments.length - 1]; // Always tell the queue task is complete. Execute callback if any was given.
+
     if (typeof lastArg === 'function') {
       // Callback was supplied
       newArguments[newArguments.length - 1] = function () {
-        async.setImmediate(cb);
+        _async.default.setImmediate(cb);
+
         lastArg.apply(null, arguments);
       };
     } else if (!lastArg && task.arguments.length !== 0) {
       // false/undefined/null supplied as callbback
-      newArguments[newArguments.length - 1] = function () { cb(); };
+      newArguments[newArguments.length - 1] = function () {
+        cb();
+      };
     } else {
       // Nothing supplied as callback
-      newArguments.push(function () { cb(); });
+      newArguments.push(function () {
+        cb();
+      });
     }
-
 
     task.fn.apply(task.this, newArguments);
   }, 1);
 }
-
-
 /**
  * If executor is ready, queue task (and process it immediately if executor was idle)
  * If not, buffer task for later processing
@@ -1307,6 +1518,8 @@ function Executor () {
  *                                                                 and the last argument cannot be false/undefined/null
  * @param {Boolean} forceQueuing Optional (defaults to false) force executor to queue task even if it is not ready
  */
+
+
 Executor.prototype.push = function (task, forceQueuing) {
   if (this.ready || forceQueuing) {
     this.queue.push(task);
@@ -1314,55 +1527,76 @@ Executor.prototype.push = function (task, forceQueuing) {
     this.buffer.push(task);
   }
 };
-
-
 /**
  * Queue all tasks in buffer (in the same order they came in)
  * Automatically sets executor as ready
  */
+
+
 Executor.prototype.processBuffer = function () {
   var i;
   this.ready = true;
-  for (i = 0; i < this.buffer.length; i += 1) { this.queue.push(this.buffer[i]); }
+
+  for (i = 0; i < this.buffer.length; i += 1) {
+    this.queue.push(this.buffer[i]);
+  }
+
   this.buffer = [];
 };
 
-
-
-// Interface
-module.exports = Executor;
-
 },{"async":9}],5:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = Index;
+
+var _underscore = _interopRequireDefault(require("underscore"));
+
+var _binarySearchTree = require("binary-search-tree");
+
+var _model = _interopRequireDefault(require("./model"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 // Userland modules
-var _ = require('underscore')
-  , BinarySearchTree = require('binary-search-tree').AVLTree
-
 // Local modules
-  , model = require('./model')
-  ;
-
 
 /**
  * Two indexed pointers are equal iif they point to the same place
  */
-function checkValueEquality (a, b) {
+function checkValueEquality(a, b) {
   return a === b;
 }
-
 /**
  * Type-aware projection
  */
-function projectForUnique (elt) {
-  if (elt === null) { return '$null'; }
-  if (typeof elt === 'string') { return '$string' + elt; }
-  if (typeof elt === 'boolean') { return '$boolean' + elt; }
-  if (typeof elt === 'number') { return '$number' + elt; }
-  if (Array.isArray(elt)) { return '$date' + elt.getTime(); }
 
-  return elt;   // Arrays and objects, will check for pointer equality
+
+function projectForUnique(elt) {
+  if (elt === null) {
+    return '$null';
+  }
+
+  if (typeof elt === 'string') {
+    return '$string' + elt;
+  }
+
+  if (typeof elt === 'boolean') {
+    return '$boolean' + elt;
+  }
+
+  if (typeof elt === 'number') {
+    return '$number' + elt;
+  }
+
+  if (Array.isArray(elt)) {
+    return '$date' + elt.getTime();
+  }
+
+  return elt; // Arrays and objects, will check for pointer equality
 }
-
-
 /**
  * Create a new index
  * All methods on an index guarantee that either the whole operation was successful and the index changed
@@ -1371,51 +1605,63 @@ function projectForUnique (elt) {
  * @param {Boolean} options.unique Optional, enforce a unique constraint (default: false)
  * @param {Boolean} options.sparse Optional, allow a sparse index (we can have documents for which fieldName is undefined) (default: false)
  */
-function Index (options) {
+
+
+function Index(options) {
   this.fieldName = options.fieldName;
   this.unique = options.unique || false;
   this.sparse = options.sparse || false;
-
-  this.treeOptions = { unique: this.unique, compareKeys: model.compareThings, checkValueEquality: checkValueEquality };
-
-  this.reset();   // No data in the beginning
+  this.treeOptions = {
+    unique: this.unique,
+    compareKeys: _model.default.compareThings,
+    checkValueEquality: checkValueEquality
+  };
+  this.reset(); // No data in the beginning
 }
-
-
 /**
  * Reset an index
  * @param {Document or Array of documents} newData Optional, data to initialize the index with
  *                                                 If an error is thrown during insertion, the index is not modified
  */
+
+
 Index.prototype.reset = function (newData) {
-  this.tree = new BinarySearchTree(this.treeOptions);
+  this.tree = new _binarySearchTree.AVLTree(this.treeOptions);
 
-  if (newData) { this.insert(newData); }
+  if (newData) {
+    this.insert(newData);
+  }
 };
-
-
 /**
  * Insert a new document in the index
  * If an array is passed, we insert all its elements (if one insertion fails the index is not modified)
  * O(log(n))
  */
+
+
 Index.prototype.insert = function (doc) {
-  var key, self = this
-    , keys, i, failingI, error
-    ;
+  var key;
+  var keys;
+  var i;
+  var failingI;
+  var error;
 
-  if (Array.isArray(doc)) { this.insertMultipleDocs(doc); return; }
+  if (Array.isArray(doc)) {
+    this.insertMultipleDocs(doc);
+    return;
+  }
 
-  key = model.getDotValue(doc, this.fieldName);
+  key = _model.default.getDotValue(doc, this.fieldName); // We don't index documents that don't contain the field if the index is sparse
 
-  // We don't index documents that don't contain the field if the index is sparse
-  if (key === undefined && this.sparse) { return; }
+  if (key === undefined && this.sparse) {
+    return;
+  }
 
   if (!Array.isArray(key)) {
     this.tree.insert(key, doc);
   } else {
     // If an insert fails due to a unique constraint, roll back all inserts before it
-    keys = _.uniq(key, projectForUnique);
+    keys = _underscore.default.uniq(key, projectForUnique);
 
     for (i = 0; i < keys.length; i += 1) {
       try {
@@ -1436,14 +1682,14 @@ Index.prototype.insert = function (doc) {
     }
   }
 };
-
-
 /**
  * Insert an array of documents in the index
  * If a constraint is violated, the changes should be rolled back and an error thrown
  *
  * @private
  */
+
+
 Index.prototype.insertMultipleDocs = function (docs) {
   var i, error, failingI;
 
@@ -1465,40 +1711,51 @@ Index.prototype.insertMultipleDocs = function (docs) {
     throw error;
   }
 };
-
-
 /**
  * Remove a document from the index
  * If an array is passed, we remove all its elements
  * The remove operation is safe with regards to the 'unique' constraint
  * O(log(n))
  */
+
+
 Index.prototype.remove = function (doc) {
-  var key, self = this;
+  var key;
+  var self = this;
 
-  if (Array.isArray(doc)) { doc.forEach(function (d) { self.remove(d); }); return; }
+  if (Array.isArray(doc)) {
+    doc.forEach(function (d) {
+      self.remove(d);
+    });
+    return;
+  }
 
-  key = model.getDotValue(doc, this.fieldName);
+  key = _model.default.getDotValue(doc, this.fieldName);
 
-  if (key === undefined && this.sparse) { return; }
+  if (key === undefined && this.sparse) {
+    return;
+  }
 
   if (!Array.isArray(key)) {
     this.tree.delete(key, doc);
   } else {
-    _.uniq(key, projectForUnique).forEach(function (_key) {
+    _underscore.default.uniq(key, projectForUnique).forEach(function (_key) {
       self.tree.delete(_key, doc);
     });
   }
 };
-
-
 /**
  * Update a document in the index
  * If a constraint is violated, changes are rolled back and an error thrown
  * Naive implementation, still in O(log(n))
  */
+
+
 Index.prototype.update = function (oldDoc, newDoc) {
-  if (Array.isArray(oldDoc)) { this.updateMultipleDocs(oldDoc); return; }
+  if (Array.isArray(oldDoc)) {
+    this.updateMultipleDocs(oldDoc);
+    return;
+  }
 
   this.remove(oldDoc);
 
@@ -1509,8 +1766,6 @@ Index.prototype.update = function (oldDoc, newDoc) {
     throw e;
   }
 };
-
-
 /**
  * Update multiple documents in the index
  * If a constraint is violated, the changes need to be rolled back
@@ -1519,6 +1774,8 @@ Index.prototype.update = function (oldDoc, newDoc) {
  *
  * @private
  */
+
+
 Index.prototype.updateMultipleDocs = function (pairs) {
   var i, failingI, error;
 
@@ -1534,9 +1791,9 @@ Index.prototype.updateMultipleDocs = function (pairs) {
       failingI = i;
       break;
     }
-  }
+  } // If an error was raised, roll back changes in the inverse order
 
-  // If an error was raised, roll back changes in the inverse order
+
   if (error) {
     for (i = 0; i < failingI; i += 1) {
       this.remove(pairs[i].newDoc);
@@ -1549,11 +1806,11 @@ Index.prototype.updateMultipleDocs = function (pairs) {
     throw error;
   }
 };
-
-
 /**
  * Revert an update
  */
+
+
 Index.prototype.revertUpdate = function (oldDoc, newDoc) {
   var revert = [];
 
@@ -1561,59 +1818,59 @@ Index.prototype.revertUpdate = function (oldDoc, newDoc) {
     this.update(newDoc, oldDoc);
   } else {
     oldDoc.forEach(function (pair) {
-      revert.push({ oldDoc: pair.newDoc, newDoc: pair.oldDoc });
+      revert.push({
+        oldDoc: pair.newDoc,
+        newDoc: pair.oldDoc
+      });
     });
     this.update(revert);
   }
 };
-
-
 /**
  * Get all documents in index whose key match value (if it is a Thing) or one of the elements of value (if it is an array of Things)
  * @param {Thing} value Value to match the key against
  * @return {Array of documents}
  */
+
+
 Index.prototype.getMatching = function (value) {
   var self = this;
 
   if (!Array.isArray(value)) {
     return self.tree.search(value);
   } else {
-    var _res = {}, res = [];
-
+    var _res = {};
+    var res = [];
     value.forEach(function (v) {
       self.getMatching(v).forEach(function (doc) {
         _res[doc._id] = doc;
       });
     });
-
     Object.keys(_res).forEach(function (_id) {
       res.push(_res[_id]);
     });
-
     return res;
   }
 };
-
-
 /**
  * Get all documents in index whose key is between bounds are they are defined by query
  * Documents are sorted by key
  * @param {Query} query
  * @return {Array of documents}
  */
+
+
 Index.prototype.getBetweenBounds = function (query) {
   return this.tree.betweenBounds(query);
 };
-
-
 /**
  * Get all elements in the index
  * @return {Array of documents}
  */
+
+
 Index.prototype.getAll = function () {
   var res = [];
-
   this.tree.executeOnEveryNode(function (node) {
     var i;
 
@@ -1621,37 +1878,43 @@ Index.prototype.getAll = function () {
       res.push(node.data[i]);
     }
   });
-
   return res;
 };
 
-
-
-
-// Interface
-module.exports = Index;
-
 },{"./model":6,"binary-search-tree":10,"underscore":15}],6:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.checkObject = checkObject;
+exports.serialize = serialize;
+exports.deserialize = deserialize;
+exports.deepCopy = deepCopy;
+exports.isPrimitiveType = isPrimitiveType;
+exports.compareThings = compareThings;
+exports.modify = modify;
+exports.getDotValue = getDotValue;
+exports.areThingsEqual = areThingsEqual;
+exports.match = match;
+
+var _underscore = _interopRequireDefault(require("underscore"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 /**
  * Handle models (i.e. docs)
  * Serialization/deserialization
  * Copying
  * Querying, update
  */
-
 // Userland modules
-var _ = require('underscore')
-
-
 // Local variables
-  , modifierFunctions = {}
-  , lastStepModifierFunctions = {}
-  , comparisonFunctions = {}
-  , logicalOperators = {}
-  , arrayComparisonFunctions = {}
-  ;
-
-
+var modifierFunctions = {};
+var lastStepModifierFunctions = {};
+var comparisonFunctions = {};
+var logicalOperators = {};
+var arrayComparisonFunctions = {};
 /**
  * Check a key, throw an error if the key is non valid
  * @param {String} k key
@@ -1660,7 +1923,8 @@ var _ = require('underscore')
  * Its serialized-then-deserialized version it will transformed into a Date object
  * But you really need to want it to trigger such behaviour, even when warned not to use '$' at the beginning of the field names...
  */
-function checkKey (k, v) {
+
+function checkKey(k, v) {
   if (typeof k === 'number') {
     k = k.toString();
   }
@@ -1673,13 +1937,13 @@ function checkKey (k, v) {
     throw new Error('Field names cannot contain a .');
   }
 }
-
-
 /**
  * Check a DB object and throw an error if it's not valid
  * Works by applying the above checkKey function to all fields recursively
  */
-function checkObject (obj) {
+
+
+function checkObject(obj) {
   if (Array.isArray(obj)) {
     obj.forEach(function (o) {
       checkObject(o);
@@ -1693,8 +1957,6 @@ function checkObject (obj) {
     });
   }
 }
-
-
 /**
  * Serialize an object to be persisted to a one-line string
  * For serialization/deserialization, we use the native JSON parser and not eval or Function
@@ -1703,116 +1965,132 @@ function checkObject (obj) {
  * Accepted primitive types: Number, String, Boolean, Date, null
  * Accepted secondary types: Objects, Arrays
  */
-function serialize (obj) {
-  var res;
 
+
+function serialize(obj) {
+  var res;
   res = JSON.stringify(obj, function (k, v) {
     checkKey(k, v);
 
-    if (v === undefined) { return undefined; }
-    if (v === null) { return null; }
+    if (v === undefined) {
+      return undefined;
+    }
 
-    // Hackish way of checking if object is Date (this way it works between execution contexts in node-webkit).
+    if (v === null) {
+      return null;
+    } // Hackish way of checking if object is Date (this way it works between execution contexts in node-webkit).
     // We can't use value directly because for dates it is already string in this function (date.toJSON was already called), so we use this
-    if (typeof this[k].getTime === 'function') { return { $$date: this[k].getTime() }; }
+
+
+    if (typeof this[k].getTime === 'function') {
+      return {
+        $$date: this[k].getTime()
+      };
+    }
 
     return v;
   });
-
   return res;
 }
-
-
 /**
  * From a one-line representation of an object generate by the serialize function
  * Return the object itself
  */
-function deserialize (rawData) {
+
+
+function deserialize(rawData) {
   return JSON.parse(rawData, function (k, v) {
-    if (k === '$$date') { return new Date(v); }
-    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean' || v === null) { return v; }
-    if (v && v.$$date) { return v.$$date; }
+    if (k === '$$date') {
+      return new Date(v);
+    }
+
+    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean' || v === null) {
+      return v;
+    }
+
+    if (v && v.$$date) {
+      return v.$$date;
+    }
 
     return v;
   });
 }
-
-
 /**
  * Deep copy a DB object
  * The optional strictKeys flag (defaulting to false) indicates whether to copy everything or only fields
  * where the keys are valid, i.e. don't begin with $ and don't contain a .
  */
-function deepCopy (obj, strictKeys) {
+
+
+function deepCopy(obj, strictKeys) {
   var res;
 
-  if ( typeof obj === 'boolean' ||
-       typeof obj === 'number' ||
-       typeof obj === 'string' ||
-       obj === null ||
-       (_.isDate(obj)) ) {
+  if (typeof obj === 'boolean' || typeof obj === 'number' || typeof obj === 'string' || obj === null || _underscore.default.isDate(obj)) {
     return obj;
   }
 
   if (Array.isArray(obj)) {
     res = [];
-    obj.forEach(function (o) { res.push(deepCopy(o, strictKeys)); });
+    obj.forEach(function (o) {
+      res.push(deepCopy(o, strictKeys));
+    });
     return res;
   }
 
   if (typeof obj === 'object') {
     res = {};
     Object.keys(obj).forEach(function (k) {
-      if (!strictKeys || (k[0] !== '$' && k.indexOf('.') === -1)) {
+      if (!strictKeys || k[0] !== '$' && k.indexOf('.') === -1) {
         res[k] = deepCopy(obj[k], strictKeys);
       }
     });
     return res;
   }
 
-  return undefined;   // For now everything else is undefined. We should probably throw an error instead
+  return undefined; // For now everything else is undefined. We should probably throw an error instead
 }
-
-
 /**
  * Tells if an object is a primitive type or a "real" object
  * Arrays are considered primitive
  */
-function isPrimitiveType (obj) {
-  return ( typeof obj === 'boolean' ||
-       typeof obj === 'number' ||
-       typeof obj === 'string' ||
-       obj === null ||
-       _.isDate(obj) ||
-       Array.isArray(obj));
+
+
+function isPrimitiveType(obj) {
+  return typeof obj === 'boolean' || typeof obj === 'number' || typeof obj === 'string' || obj === null || _underscore.default.isDate(obj) || Array.isArray(obj);
 }
-
-
 /**
  * Utility functions for comparing things
  * Assumes type checking was already done (a and b already have the same type)
  * compareNSB works for numbers, strings and booleans
  */
-function compareNSB (a, b) {
-  if (a < b) { return -1; }
-  if (a > b) { return 1; }
+
+
+function compareNSB(a, b) {
+  if (a < b) {
+    return -1;
+  }
+
+  if (a > b) {
+    return 1;
+  }
+
   return 0;
 }
 
-function compareArrays (a, b) {
+function compareArrays(a, b) {
   var i, comp;
 
   for (i = 0; i < Math.min(a.length, b.length); i += 1) {
     comp = compareThings(a[i], b[i]);
 
-    if (comp !== 0) { return comp; }
-  }
+    if (comp !== 0) {
+      return comp;
+    }
+  } // Common section was identical, longest one wins
 
-  // Common section was identical, longest one wins
+
   return compareNSB(a.length, b.length);
 }
-
-
 /**
  * Compare { things U undefined }
  * Things are defined as any native types (string, number, boolean, null, date) and objects
@@ -1823,54 +2101,91 @@ function compareArrays (a, b) {
  *
  * @param {Function} _compareStrings String comparing function, returning -1, 0 or 1, overriding default string comparison (useful for languages with accented letters)
  */
-function compareThings (a, b, _compareStrings) {
-  var aKeys, bKeys, comp, i
-    , compareStrings = _compareStrings || compareNSB;
 
-  // undefined
-  if (a === undefined) { return b === undefined ? 0 : -1; }
-  if (b === undefined) { return a === undefined ? 0 : 1; }
 
-  // null
-  if (a === null) { return b === null ? 0 : -1; }
-  if (b === null) { return a === null ? 0 : 1; }
+function compareThings(a, b, _compareStrings) {
+  var aKeys;
+  var bKeys;
+  var comp;
+  var i;
+  var compareStrings = _compareStrings || compareNSB; // undefined
 
-  // Numbers
-  if (typeof a === 'number') { return typeof b === 'number' ? compareNSB(a, b) : -1; }
-  if (typeof b === 'number') { return typeof a === 'number' ? compareNSB(a, b) : 1; }
+  if (a === undefined) {
+    return b === undefined ? 0 : -1;
+  }
 
-  // Strings
-  if (typeof a === 'string') { return typeof b === 'string' ? compareStrings(a, b) : -1; }
-  if (typeof b === 'string') { return typeof a === 'string' ? compareStrings(a, b) : 1; }
+  if (b === undefined) {
+    return a === undefined ? 0 : 1;
+  } // null
 
-  // Booleans
-  if (typeof a === 'boolean') { return typeof b === 'boolean' ? compareNSB(a, b) : -1; }
-  if (typeof b === 'boolean') { return typeof a === 'boolean' ? compareNSB(a, b) : 1; }
 
-  // Dates
-  if (_.isDate(a)) { return _.isDate(b) ? compareNSB(a.getTime(), b.getTime()) : -1; }
-  if (_.isDate(b)) { return _.isDate(a) ? compareNSB(a.getTime(), b.getTime()) : 1; }
+  if (a === null) {
+    return b === null ? 0 : -1;
+  }
 
-  // Arrays (first element is most significant and so on)
-  if (Array.isArray(a)) { return Array.isArray(b) ? compareArrays(a, b) : -1; }
-  if (Array.isArray(b)) { return Array.isArray(a) ? compareArrays(a, b) : 1; }
+  if (b === null) {
+    return a === null ? 0 : 1;
+  } // Numbers
 
-  // Objects
+
+  if (typeof a === 'number') {
+    return typeof b === 'number' ? compareNSB(a, b) : -1;
+  }
+
+  if (typeof b === 'number') {
+    return typeof a === 'number' ? compareNSB(a, b) : 1;
+  } // Strings
+
+
+  if (typeof a === 'string') {
+    return typeof b === 'string' ? compareStrings(a, b) : -1;
+  }
+
+  if (typeof b === 'string') {
+    return typeof a === 'string' ? compareStrings(a, b) : 1;
+  } // Booleans
+
+
+  if (typeof a === 'boolean') {
+    return typeof b === 'boolean' ? compareNSB(a, b) : -1;
+  }
+
+  if (typeof b === 'boolean') {
+    return typeof a === 'boolean' ? compareNSB(a, b) : 1;
+  } // Dates
+
+
+  if (_underscore.default.isDate(a)) {
+    return _underscore.default.isDate(b) ? compareNSB(a.getTime(), b.getTime()) : -1;
+  }
+
+  if (_underscore.default.isDate(b)) {
+    return _underscore.default.isDate(a) ? compareNSB(a.getTime(), b.getTime()) : 1;
+  } // Arrays (first element is most significant and so on)
+
+
+  if (Array.isArray(a)) {
+    return Array.isArray(b) ? compareArrays(a, b) : -1;
+  }
+
+  if (Array.isArray(b)) {
+    return Array.isArray(a) ? compareArrays(a, b) : 1;
+  } // Objects
+
+
   aKeys = Object.keys(a).sort();
   bKeys = Object.keys(b).sort();
 
   for (i = 0; i < Math.min(aKeys.length, bKeys.length); i += 1) {
     comp = compareThings(a[aKeys[i]], b[bKeys[i]]);
 
-    if (comp !== 0) { return comp; }
+    if (comp !== 0) {
+      return comp;
+    }
   }
 
   return compareNSB(aKeys.length, bKeys.length);
-}
-
-
-
-// ==============================================================
+} // ==============================================================
 // Updating documents
 // ==============================================================
 
@@ -1886,49 +2201,65 @@ function compareThings (a, b, _compareStrings) {
 /**
  * Set a field to a new value
  */
+
+
 lastStepModifierFunctions.$set = function (obj, field, value) {
   obj[field] = value;
 };
-
-
 /**
  * Unset a field
  */
+
+
 lastStepModifierFunctions.$unset = function (obj, field, value) {
   delete obj[field];
 };
-
-
 /**
  * Push an element to the end of an array field
  * Optional modifier $each instead of value to push several values
  * Optional modifier $slice to slice the resulting array, see https://docs.mongodb.org/manual/reference/operator/update/slice/
  * Différeence with MongoDB: if $slice is specified and not $each, we act as if value is an empty array
  */
+
+
 lastStepModifierFunctions.$push = function (obj, field, value) {
   // Create the array if it doesn't exist
-  if (!obj.hasOwnProperty(field)) { obj[field] = []; }
+  if (!obj.hasOwnProperty(field)) {
+    obj[field] = [];
+  }
 
-  if (!Array.isArray(obj[field])) { throw new Error("Can't $push an element on non-array values"); }
+  if (!Array.isArray(obj[field])) {
+    throw new Error("Can't $push an element on non-array values");
+  }
 
   if (value !== null && typeof value === 'object' && value.$slice && value.$each === undefined) {
     value.$each = [];
   }
 
   if (value !== null && typeof value === 'object' && value.$each) {
-    if (Object.keys(value).length >= 3 || (Object.keys(value).length === 2 && value.$slice === undefined)) { throw new Error("Can only use $slice in conjunction with $each when $push to array"); }
-    if (!Array.isArray(value.$each)) { throw new Error("$each requires an array value"); }
+    if (Object.keys(value).length >= 3 || Object.keys(value).length === 2 && value.$slice === undefined) {
+      throw new Error('Can only use $slice in conjunction with $each when $push to array');
+    }
+
+    if (!Array.isArray(value.$each)) {
+      throw new Error('$each requires an array value');
+    }
 
     value.$each.forEach(function (v) {
       obj[field].push(v);
     });
 
-    if (value.$slice === undefined || typeof value.$slice !== 'number') { return; }
+    if (value.$slice === undefined || typeof value.$slice !== 'number') {
+      return;
+    }
 
     if (value.$slice === 0) {
       obj[field] = [];
     } else {
-      var start, end, n = obj[field].length;
+      var start;
+      var end;
+      var n = obj[field].length;
+
       if (value.$slice < 0) {
         start = Math.max(0, n + value.$slice);
         end = n;
@@ -1936,50 +2267,72 @@ lastStepModifierFunctions.$push = function (obj, field, value) {
         start = 0;
         end = Math.min(n, value.$slice);
       }
+
       obj[field] = obj[field].slice(start, end);
     }
   } else {
     obj[field].push(value);
   }
 };
-
-
 /**
  * Add an element to an array field only if it is not already in it
  * No modification if the element is already in the array
  * Note that it doesn't check whether the original array contains duplicates
  */
+
+
 lastStepModifierFunctions.$addToSet = function (obj, field, value) {
-  var addToSet = true;
+  var addToSet = true; // Create the array if it doesn't exist
 
-  // Create the array if it doesn't exist
-  if (!obj.hasOwnProperty(field)) { obj[field] = []; }
+  if (!obj.hasOwnProperty(field)) {
+    obj[field] = [];
+  }
 
-  if (!Array.isArray(obj[field])) { throw new Error("Can't $addToSet an element on non-array values"); }
+  if (!Array.isArray(obj[field])) {
+    throw new Error("Can't $addToSet an element on non-array values");
+  }
 
   if (value !== null && typeof value === 'object' && value.$each) {
-    if (Object.keys(value).length > 1) { throw new Error("Can't use another field in conjunction with $each"); }
-    if (!Array.isArray(value.$each)) { throw new Error("$each requires an array value"); }
+    if (Object.keys(value).length > 1) {
+      throw new Error("Can't use another field in conjunction with $each");
+    }
+
+    if (!Array.isArray(value.$each)) {
+      throw new Error('$each requires an array value');
+    }
 
     value.$each.forEach(function (v) {
       lastStepModifierFunctions.$addToSet(obj, field, v);
     });
   } else {
     obj[field].forEach(function (v) {
-      if (compareThings(v, value) === 0) { addToSet = false; }
+      if (compareThings(v, value) === 0) {
+        addToSet = false;
+      }
     });
-    if (addToSet) { obj[field].push(value); }
+
+    if (addToSet) {
+      obj[field].push(value);
+    }
   }
 };
-
-
 /**
  * Remove the first or last element of an array
  */
+
+
 lastStepModifierFunctions.$pop = function (obj, field, value) {
-  if (!Array.isArray(obj[field])) { throw new Error("Can't $pop an element from non-array values"); }
-  if (typeof value !== 'number') { throw new Error(value + " isn't an integer, can't use it with $pop"); }
-  if (value === 0) { return; }
+  if (!Array.isArray(obj[field])) {
+    throw new Error("Can't $pop an element from non-array values");
+  }
+
+  if (typeof value !== 'number') {
+    throw new Error(value + " isn't an integer, can't use it with $pop");
+  }
+
+  if (value === 0) {
+    return;
+  }
 
   if (value > 0) {
     obj[field] = obj[field].slice(0, obj[field].length - 1);
@@ -1987,33 +2340,38 @@ lastStepModifierFunctions.$pop = function (obj, field, value) {
     obj[field] = obj[field].slice(1);
   }
 };
-
-
 /**
  * Removes all instances of a value from an existing array
  */
+
+
 lastStepModifierFunctions.$pull = function (obj, field, value) {
   var arr, i;
 
-  if (!Array.isArray(obj[field])) { throw new Error("Can't $pull an element from non-array values"); }
+  if (!Array.isArray(obj[field])) {
+    throw new Error("Can't $pull an element from non-array values");
+  }
 
   arr = obj[field];
+
   for (i = arr.length - 1; i >= 0; i -= 1) {
     if (match(arr[i], value)) {
       arr.splice(i, 1);
     }
   }
 };
-
-
 /**
  * Increment a numeric field's value
  */
+
+
 lastStepModifierFunctions.$inc = function (obj, field, value) {
-  if (typeof value !== 'number') { throw new Error(value + " must be a number"); }
+  if (typeof value !== 'number') {
+    throw new Error(value + ' must be a number');
+  }
 
   if (typeof obj[field] !== 'number') {
-    if (!_.has(obj, field)) {
+    if (!_underscore.default.has(obj, field)) {
       obj[field] = value;
     } else {
       throw new Error("Don't use the $inc modifier on non-number fields");
@@ -2022,10 +2380,11 @@ lastStepModifierFunctions.$inc = function (obj, field, value) {
     obj[field] += value;
   }
 };
-
 /**
  * Updates the value of the field, only if specified field is greater than the current value of the field
  */
+
+
 lastStepModifierFunctions.$max = function (obj, field, value) {
   if (typeof obj[field] === 'undefined') {
     obj[field] = value;
@@ -2033,20 +2392,21 @@ lastStepModifierFunctions.$max = function (obj, field, value) {
     obj[field] = value;
   }
 };
-
 /**
  * Updates the value of the field, only if specified field is smaller than the current value of the field
  */
+
+
 lastStepModifierFunctions.$min = function (obj, field, value) {
   if (typeof obj[field] === 'undefined') {
     obj[field] = value;
   } else if (value < obj[field]) {
     obj[field] = value;
   }
-};
+}; // Given its name, create the complete modifier function
 
-// Given its name, create the complete modifier function
-function createModifierFunction (modifier) {
+
+function createModifierFunction(modifier) {
   return function (obj, field, value) {
     var fieldParts = typeof field === 'string' ? field.split('.') : field;
 
@@ -2054,34 +2414,47 @@ function createModifierFunction (modifier) {
       lastStepModifierFunctions[modifier](obj, field, value);
     } else {
       if (obj[fieldParts[0]] === undefined) {
-        if (modifier === '$unset') { return; }   // Bad looking specific fix, needs to be generalized modifiers that behave like $unset are implemented
+        if (modifier === '$unset') {
+          return;
+        } // Bad looking specific fix, needs to be generalized modifiers that behave like $unset are implemented
+
+
         obj[fieldParts[0]] = {};
       }
+
       modifierFunctions[modifier](obj[fieldParts[0]], fieldParts.slice(1), value);
     }
   };
-}
+} // Actually create all modifier functions
 
-// Actually create all modifier functions
+
 Object.keys(lastStepModifierFunctions).forEach(function (modifier) {
   modifierFunctions[modifier] = createModifierFunction(modifier);
 });
-
-
 /**
  * Modify a DB object according to an update query
  */
-function modify (obj, updateQuery) {
-  var keys = Object.keys(updateQuery)
-    , firstChars = _.map(keys, function (item) { return item[0]; })
-    , dollarFirstChars = _.filter(firstChars, function (c) { return c === '$'; })
-    , newDoc, modifiers
-    ;
 
-  if (keys.indexOf('_id') !== -1 && updateQuery._id !== obj._id) { throw new Error("You cannot change a document's _id"); }
+function modify(obj, updateQuery) {
+  var keys = Object.keys(updateQuery);
+
+  var firstChars = _underscore.default.map(keys, function (item) {
+    return item[0];
+  });
+
+  var dollarFirstChars = _underscore.default.filter(firstChars, function (c) {
+    return c === '$';
+  });
+
+  var newDoc;
+  var modifiers;
+
+  if (keys.indexOf('_id') !== -1 && updateQuery._id !== obj._id) {
+    throw new Error("You cannot change a document's _id");
+  }
 
   if (dollarFirstChars.length !== 0 && dollarFirstChars.length !== firstChars.length) {
-    throw new Error("You cannot mix modifiers and normal fields");
+    throw new Error('You cannot mix modifiers and normal fields');
   }
 
   if (dollarFirstChars.length === 0) {
@@ -2090,17 +2463,19 @@ function modify (obj, updateQuery) {
     newDoc._id = obj._id;
   } else {
     // Apply modifiers
-    modifiers = _.uniq(keys);
+    modifiers = _underscore.default.uniq(keys);
     newDoc = deepCopy(obj);
     modifiers.forEach(function (m) {
       var keys;
 
-      if (!modifierFunctions[m]) { throw new Error("Unknown modifier " + m); }
-
-      // Can't rely on Object.keys throwing on non objects since ES6
+      if (!modifierFunctions[m]) {
+        throw new Error('Unknown modifier ' + m);
+      } // Can't rely on Object.keys throwing on non objects since ES6
       // Not 100% satisfying as non objects can be interpreted as objects but no false negatives so we can live with it
+
+
       if (typeof updateQuery[m] !== 'object') {
-        throw new Error("Modifier " + m + "'s argument must be an object");
+        throw new Error('Modifier ' + m + "'s argument must be an object");
       }
 
       keys = Object.keys(updateQuery[m]);
@@ -2108,17 +2483,19 @@ function modify (obj, updateQuery) {
         modifierFunctions[m](newDoc, k, updateQuery[m][k]);
       });
     });
-  }
+  } // Check result is valid and return it
 
-  // Check result is valid and return it
+
   checkObject(newDoc);
 
-  if (obj._id !== newDoc._id) { throw new Error("You can't change a document's _id"); }
+  if (obj._id !== newDoc._id) {
+    throw new Error("You can't change a document's _id");
+  }
+
   return newDoc;
-};
+}
 
-
-// ==============================================================
+; // ==============================================================
 // Finding documents
 // ==============================================================
 
@@ -2127,57 +2504,73 @@ function modify (obj, updateQuery) {
  * @param {Object} obj
  * @param {String} field
  */
-function getDotValue (obj, field) {
-  var fieldParts = typeof field === 'string' ? field.split('.') : field
-    , i, objs;
 
-  if (!obj) { return undefined; }   // field cannot be empty so that means we should return undefined so that nothing can match
+function getDotValue(obj, field) {
+  var fieldParts = typeof field === 'string' ? field.split('.') : field;
+  var i;
+  var objs;
 
-  if (fieldParts.length === 0) { return obj; }
+  if (!obj) {
+    return undefined;
+  } // field cannot be empty so that means we should return undefined so that nothing can match
 
-  if (fieldParts.length === 1) { return obj[fieldParts[0]]; }
+
+  if (fieldParts.length === 0) {
+    return obj;
+  }
+
+  if (fieldParts.length === 1) {
+    return obj[fieldParts[0]];
+  }
 
   if (Array.isArray(obj[fieldParts[0]])) {
     // If the next field is an integer, return only this item of the array
     i = parseInt(fieldParts[1], 10);
+
     if (typeof i === 'number' && !isNaN(i)) {
-      return getDotValue(obj[fieldParts[0]][i], fieldParts.slice(2))
+      return getDotValue(obj[fieldParts[0]][i], fieldParts.slice(2));
+    } // Return the array of values
+
+
+    objs = new Array();
+
+    for (i = 0; i < obj[fieldParts[0]].length; i += 1) {
+      objs.push(getDotValue(obj[fieldParts[0]][i], fieldParts.slice(1)));
     }
 
-    // Return the array of values
-    objs = new Array();
-    for (i = 0; i < obj[fieldParts[0]].length; i += 1) {
-       objs.push(getDotValue(obj[fieldParts[0]][i], fieldParts.slice(1)));
-    }
     return objs;
   } else {
     return getDotValue(obj[fieldParts[0]], fieldParts.slice(1));
   }
 }
-
-
 /**
  * Check whether 'things' are equal
  * Things are defined as any native types (string, number, boolean, null, date) and objects
  * In the case of object, we check deep equality
  * Returns true if they are, false otherwise
  */
-function areThingsEqual (a, b) {
-  var aKeys , bKeys , i;
 
-  // Strings, booleans, numbers, null
-  if (a === null || typeof a === 'string' || typeof a === 'boolean' || typeof a === 'number' ||
-      b === null || typeof b === 'string' || typeof b === 'boolean' || typeof b === 'number') { return a === b; }
 
-  // Dates
-  if (_.isDate(a) || _.isDate(b)) { return _.isDate(a) && _.isDate(b) && a.getTime() === b.getTime(); }
+function areThingsEqual(a, b) {
+  var aKeys, bKeys, i; // Strings, booleans, numbers, null
 
-  // Arrays (no match since arrays are used as a $in)
+  if (a === null || typeof a === 'string' || typeof a === 'boolean' || typeof a === 'number' || b === null || typeof b === 'string' || typeof b === 'boolean' || typeof b === 'number') {
+    return a === b;
+  } // Dates
+
+
+  if (_underscore.default.isDate(a) || _underscore.default.isDate(b)) {
+    return _underscore.default.isDate(a) && _underscore.default.isDate(b) && a.getTime() === b.getTime();
+  } // Arrays (no match since arrays are used as a $in)
   // undefined (no match since they mean field doesn't exist and can't be serialized)
-  if ((!(Array.isArray(a) && Array.isArray(b)) && (Array.isArray(a) || Array.isArray(b))) || a === undefined || b === undefined) { return false; }
 
-  // General objects (check for deep equality)
+
+  if (!(Array.isArray(a) && Array.isArray(b)) && (Array.isArray(a) || Array.isArray(b)) || a === undefined || b === undefined) {
+    return false;
+  } // General objects (check for deep equality)
   // a and b should be objects at this point
+
+
   try {
     aKeys = Object.keys(a);
     bKeys = Object.keys(b);
@@ -2185,35 +2578,45 @@ function areThingsEqual (a, b) {
     return false;
   }
 
-  if (aKeys.length !== bKeys.length) { return false; }
-  for (i = 0; i < aKeys.length; i += 1) {
-    if (bKeys.indexOf(aKeys[i]) === -1) { return false; }
-    if (!areThingsEqual(a[aKeys[i]], b[aKeys[i]])) { return false; }
-  }
-  return true;
-}
-
-
-/**
- * Check that two values are comparable
- */
-function areComparable (a, b) {
-  if (typeof a !== 'string' && typeof a !== 'number' && !_.isDate(a) &&
-      typeof b !== 'string' && typeof b !== 'number' && !_.isDate(b)) {
+  if (aKeys.length !== bKeys.length) {
     return false;
   }
 
-  if (typeof a !== typeof b) { return false; }
+  for (i = 0; i < aKeys.length; i += 1) {
+    if (bKeys.indexOf(aKeys[i]) === -1) {
+      return false;
+    }
+
+    if (!areThingsEqual(a[aKeys[i]], b[aKeys[i]])) {
+      return false;
+    }
+  }
 
   return true;
 }
+/**
+ * Check that two values are comparable
+ */
 
 
+function areComparable(a, b) {
+  if (typeof a !== 'string' && typeof a !== 'number' && !_underscore.default.isDate(a) && typeof b !== 'string' && typeof b !== 'number' && !_underscore.default.isDate(b)) {
+    return false;
+  }
+
+  if (typeof a !== typeof b) {
+    return false;
+  }
+
+  return true;
+}
 /**
  * Arithmetic and comparison operators
  * @param {Native value} a Value in the object
  * @param {Native value} b Value in the query
  */
+
+
 comparisonFunctions.$lt = function (a, b) {
   return areComparable(a, b) && a < b;
 };
@@ -2231,44 +2634,57 @@ comparisonFunctions.$gte = function (a, b) {
 };
 
 comparisonFunctions.$ne = function (a, b) {
-  if (a === undefined) { return true; }
+  if (a === undefined) {
+    return true;
+  }
+
   return !areThingsEqual(a, b);
 };
 
 comparisonFunctions.$in = function (a, b) {
   var i;
 
-  if (!Array.isArray(b)) { throw new Error("$in operator called with a non-array"); }
+  if (!Array.isArray(b)) {
+    throw new Error('$in operator called with a non-array');
+  }
 
   for (i = 0; i < b.length; i += 1) {
-    if (areThingsEqual(a, b[i])) { return true; }
+    if (areThingsEqual(a, b[i])) {
+      return true;
+    }
   }
 
   return false;
 };
 
 comparisonFunctions.$nin = function (a, b) {
-  if (!Array.isArray(b)) { throw new Error("$nin operator called with a non-array"); }
+  if (!Array.isArray(b)) {
+    throw new Error('$nin operator called with a non-array');
+  }
 
   return !comparisonFunctions.$in(a, b);
 };
 
 comparisonFunctions.$regex = function (a, b) {
-  if (!_.isRegExp(b)) { throw new Error("$regex operator called with non regular expression"); }
+  if (!_underscore.default.isRegExp(b)) {
+    throw new Error('$regex operator called with non regular expression');
+  }
 
   if (typeof a !== 'string') {
-    return false
+    return false;
   } else {
     if (b.global) {
       b.lastIndex = 0;
     }
+
     return b.test(a);
   }
 };
 
 comparisonFunctions.$exists = function (value, exists) {
-  if (exists || exists === '') {   // This will be true for all values of exists except false, null, undefined and 0
-    exists = true;                 // That's strange behaviour (we should only use true/false) but that's the way Mongo does it...
+  if (exists || exists === '') {
+    // This will be true for all values of exists except false, null, undefined and 0
+    exists = true; // That's strange behaviour (we should only use true/false) but that's the way Mongo does it...
   } else {
     exists = false;
   }
@@ -2278,381 +2694,464 @@ comparisonFunctions.$exists = function (value, exists) {
   } else {
     return exists;
   }
-};
+}; // Specific to arrays
 
-// Specific to arrays
+
 comparisonFunctions.$size = function (obj, value) {
-    if (!Array.isArray(obj)) { return false; }
-    if (value % 1 !== 0) { throw new Error("$size operator called without an integer"); }
+  if (!Array.isArray(obj)) {
+    return false;
+  }
 
-    return (obj.length == value);
+  if (value % 1 !== 0) {
+    throw new Error('$size operator called without an integer');
+  }
+
+  return obj.length == value;
 };
+
 comparisonFunctions.$elemMatch = function (obj, value) {
-  if (!Array.isArray(obj)) { return false; }
+  if (!Array.isArray(obj)) {
+    return false;
+  }
+
   var i = obj.length;
-  var result = false;   // Initialize result
+  var result = false; // Initialize result
+
   while (i--) {
-    if (match(obj[i], value)) {   // If match for array element, return true
+    if (match(obj[i], value)) {
+      // If match for array element, return true
       result = true;
       break;
     }
   }
+
   return result;
 };
+
 arrayComparisonFunctions.$size = true;
 arrayComparisonFunctions.$elemMatch = true;
 arrayComparisonFunctions.$exists = true;
-
-
 /**
  * Match any of the subqueries
  * @param {Model} obj
  * @param {Array of Queries} query
  */
+
 logicalOperators.$or = function (obj, query) {
   var i;
 
-  if (!Array.isArray(query)) { throw new Error("$or operator used without an array"); }
+  if (!Array.isArray(query)) {
+    throw new Error('$or operator used without an array');
+  }
 
   for (i = 0; i < query.length; i += 1) {
-    if (match(obj, query[i])) { return true; }
+    if (match(obj, query[i])) {
+      return true;
+    }
   }
 
   return false;
 };
-
-
 /**
  * Match all of the subqueries
  * @param {Model} obj
  * @param {Array of Queries} query
  */
+
+
 logicalOperators.$and = function (obj, query) {
   var i;
 
-  if (!Array.isArray(query)) { throw new Error("$and operator used without an array"); }
+  if (!Array.isArray(query)) {
+    throw new Error('$and operator used without an array');
+  }
 
   for (i = 0; i < query.length; i += 1) {
-    if (!match(obj, query[i])) { return false; }
+    if (!match(obj, query[i])) {
+      return false;
+    }
   }
 
   return true;
 };
-
-
 /**
  * Inverted match of the query
  * @param {Model} obj
  * @param {Query} query
  */
+
+
 logicalOperators.$not = function (obj, query) {
   return !match(obj, query);
 };
-
-
 /**
  * Use a function to match
  * @param {Model} obj
  * @param {Query} query
  */
+
+
 logicalOperators.$where = function (obj, fn) {
   var result;
 
-  if (!_.isFunction(fn)) { throw new Error("$where operator used without a function"); }
+  if (!_underscore.default.isFunction(fn)) {
+    throw new Error('$where operator used without a function');
+  }
 
   result = fn.call(obj);
-  if (!_.isBoolean(result)) { throw new Error("$where function must return boolean"); }
+
+  if (!_underscore.default.isBoolean(result)) {
+    throw new Error('$where function must return boolean');
+  }
 
   return result;
 };
-
-
 /**
  * Tell if a given document matches a query
  * @param {Object} obj Document to check
  * @param {Object} query
  */
-function match (obj, query) {
-  var queryKeys, queryKey, queryValue, i;
 
-  // Primitive query against a primitive type
+
+function match(obj, query) {
+  var queryKeys, queryKey, queryValue, i; // Primitive query against a primitive type
   // This is a bit of a hack since we construct an object with an arbitrary key only to dereference it later
   // But I don't have time for a cleaner implementation now
-  if (isPrimitiveType(obj) || isPrimitiveType(query)) {
-    return matchQueryPart({ needAKey: obj }, 'needAKey', query);
-  }
 
-  // Normal query
+  if (isPrimitiveType(obj) || isPrimitiveType(query)) {
+    return matchQueryPart({
+      needAKey: obj
+    }, 'needAKey', query);
+  } // Normal query
+
+
   queryKeys = Object.keys(query);
+
   for (i = 0; i < queryKeys.length; i += 1) {
     queryKey = queryKeys[i];
     queryValue = query[queryKey];
 
     if (queryKey[0] === '$') {
-      if (!logicalOperators[queryKey]) { throw new Error("Unknown logical operator " + queryKey); }
-      if (!logicalOperators[queryKey](obj, queryValue)) { return false; }
+      if (!logicalOperators[queryKey]) {
+        throw new Error('Unknown logical operator ' + queryKey);
+      }
+
+      if (!logicalOperators[queryKey](obj, queryValue)) {
+        return false;
+      }
     } else {
-      if (!matchQueryPart(obj, queryKey, queryValue)) { return false; }
-    }
-  }
-
-  return true;
-};
-
-
-/**
- * Match an object against a specific { key: value } part of a query
- * if the treatObjAsValue flag is set, don't try to match every part separately, but the array as a whole
- */
-function matchQueryPart (obj, queryKey, queryValue, treatObjAsValue) {
-  var objValue = getDotValue(obj, queryKey)
-    , i, keys, firstChars, dollarFirstChars;
-
-  // Check if the value is an array if we don't force a treatment as value
-  if (Array.isArray(objValue) && !treatObjAsValue) {
-    // If the queryValue is an array, try to perform an exact match
-    if (Array.isArray(queryValue)) {
-      return matchQueryPart(obj, queryKey, queryValue, true);
-    }
-
-    // Check if we are using an array-specific comparison function
-    if (queryValue !== null && typeof queryValue === 'object' && !_.isRegExp(queryValue)) {
-      keys = Object.keys(queryValue);
-      for (i = 0; i < keys.length; i += 1) {
-        if (arrayComparisonFunctions[keys[i]]) { return matchQueryPart(obj, queryKey, queryValue, true); }
+      if (!matchQueryPart(obj, queryKey, queryValue)) {
+        return false;
       }
     }
-
-    // If not, treat it as an array of { obj, query } where there needs to be at least one match
-    for (i = 0; i < objValue.length; i += 1) {
-      if (matchQueryPart({ k: objValue[i] }, 'k', queryValue)) { return true; }   // k here could be any string
-    }
-    return false;
   }
-
-  // queryValue is an actual object. Determine whether it contains comparison operators
-  // or only normal fields. Mixed objects are not allowed
-  if (queryValue !== null && typeof queryValue === 'object' && !_.isRegExp(queryValue) && !Array.isArray(queryValue)) {
-    keys = Object.keys(queryValue);
-    firstChars = _.map(keys, function (item) { return item[0]; });
-    dollarFirstChars = _.filter(firstChars, function (c) { return c === '$'; });
-
-    if (dollarFirstChars.length !== 0 && dollarFirstChars.length !== firstChars.length) {
-      throw new Error("You cannot mix operators and normal fields");
-    }
-
-    // queryValue is an object of this form: { $comparisonOperator1: value1, ... }
-    if (dollarFirstChars.length > 0) {
-      for (i = 0; i < keys.length; i += 1) {
-        if (!comparisonFunctions[keys[i]]) { throw new Error("Unknown comparison function " + keys[i]); }
-
-        if (!comparisonFunctions[keys[i]](objValue, queryValue[keys[i]])) { return false; }
-      }
-      return true;
-    }
-  }
-
-  // Using regular expressions with basic querying
-  if (_.isRegExp(queryValue)) { return comparisonFunctions.$regex(objValue, queryValue); }
-
-  // queryValue is either a native value or a normal object
-  // Basic matching is possible
-  if (!areThingsEqual(objValue, queryValue)) { return false; }
 
   return true;
 }
 
+;
+/**
+ * Match an object against a specific { key: value } part of a query
+ * if the treatObjAsValue flag is set, don't try to match every part separately, but the array as a whole
+ */
 
-// Interface
-module.exports.serialize = serialize;
-module.exports.deserialize = deserialize;
-module.exports.deepCopy = deepCopy;
-module.exports.checkObject = checkObject;
-module.exports.isPrimitiveType = isPrimitiveType;
-module.exports.modify = modify;
-module.exports.getDotValue = getDotValue;
-module.exports.match = match;
-module.exports.areThingsEqual = areThingsEqual;
-module.exports.compareThings = compareThings;
+function matchQueryPart(obj, queryKey, queryValue, treatObjAsValue) {
+  var objValue = getDotValue(obj, queryKey);
+  var i;
+  var keys;
+  var firstChars;
+  var dollarFirstChars; // Check if the value is an array if we don't force a treatment as value
+
+  if (Array.isArray(objValue) && !treatObjAsValue) {
+    // If the queryValue is an array, try to perform an exact match
+    if (Array.isArray(queryValue)) {
+      return matchQueryPart(obj, queryKey, queryValue, true);
+    } // Check if we are using an array-specific comparison function
+
+
+    if (queryValue !== null && typeof queryValue === 'object' && !_underscore.default.isRegExp(queryValue)) {
+      keys = Object.keys(queryValue);
+
+      for (i = 0; i < keys.length; i += 1) {
+        if (arrayComparisonFunctions[keys[i]]) {
+          return matchQueryPart(obj, queryKey, queryValue, true);
+        }
+      }
+    } // If not, treat it as an array of { obj, query } where there needs to be at least one match
+
+
+    for (i = 0; i < objValue.length; i += 1) {
+      if (matchQueryPart({
+        k: objValue[i]
+      }, 'k', queryValue)) {
+        return true;
+      } // k here could be any string
+
+    }
+
+    return false;
+  } // queryValue is an actual object. Determine whether it contains comparison operators
+  // or only normal fields. Mixed objects are not allowed
+
+
+  if (queryValue !== null && typeof queryValue === 'object' && !_underscore.default.isRegExp(queryValue) && !Array.isArray(queryValue)) {
+    keys = Object.keys(queryValue);
+    firstChars = _underscore.default.map(keys, function (item) {
+      return item[0];
+    });
+    dollarFirstChars = _underscore.default.filter(firstChars, function (c) {
+      return c === '$';
+    });
+
+    if (dollarFirstChars.length !== 0 && dollarFirstChars.length !== firstChars.length) {
+      throw new Error('You cannot mix operators and normal fields');
+    } // queryValue is an object of this form: { $comparisonOperator1: value1, ... }
+
+
+    if (dollarFirstChars.length > 0) {
+      for (i = 0; i < keys.length; i += 1) {
+        if (!comparisonFunctions[keys[i]]) {
+          throw new Error('Unknown comparison function ' + keys[i]);
+        }
+
+        if (!comparisonFunctions[keys[i]](objValue, queryValue[keys[i]])) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+  } // Using regular expressions with basic querying
+
+
+  if (_underscore.default.isRegExp(queryValue)) {
+    return comparisonFunctions.$regex(objValue, queryValue);
+  } // queryValue is either a native value or a normal object
+  // Basic matching is possible
+
+
+  if (!areThingsEqual(objValue, queryValue)) {
+    return false;
+  }
+
+  return true;
+}
 
 },{"underscore":15}],7:[function(require,module,exports){
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = Persistence;
+
+var _async = _interopRequireDefault(require("async"));
+
+var _storage = _interopRequireDefault(require("./storage"));
+
+var _model = _interopRequireDefault(require("./model"));
+
+var _customUtils = _interopRequireDefault(require("./customUtils"));
+
+var _indexes = _interopRequireDefault(require("./indexes"));
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 /**
  * Handle every persistence-related task
  * The interface Datastore expects to be implemented is
  * * Persistence.loadDatabase(callback) and callback has signature err
  * * Persistence.persistNewState(newDocs, callback) where newDocs is an array of documents and callback has signature err
  */
-
 // Userland modules
-var async = require('async')
-
 // Local modules
-  , defaultStorage = require('./storage')
-  , model = require('./model')
-  , customUtils = require('./customUtils')
-  , Index = require('./indexes')
-  ;
-
 
 /**
  * Create a new Persistence object for database options.db
  * @param {Datastore} options.db
  * @param {Object} options.storage Optional, custom storage engine for the database files. Must implement all methods exported by the standard "storage" module included in NestDB
  */
-function Persistence (options) {
+function Persistence(options) {
   var i, j, randomString;
-
   this.db = options.db;
   this.inMemoryOnly = this.db.inMemoryOnly;
   this.filename = this.db.filename;
   this.corruptAlertThreshold = options.corruptAlertThreshold !== undefined ? options.corruptAlertThreshold : 0.1;
-  this.storage = options.storage || defaultStorage;
+  this.storage = options.storage || _storage.default;
 
   if (!this.inMemoryOnly && this.filename && this.filename.charAt(this.filename.length - 1) === '~') {
     throw new Error("The datafile name can't end with a ~, which is reserved for crash safe backup files");
+  } // After serialization and before deserialization hooks with some basic sanity checks
+
+
+  if (options.afterSerialization && !options.beforeDeserialization) {
+    throw new Error('Serialization hook defined but deserialization hook undefined, cautiously refusing to start NestDB to prevent dataloss');
   }
 
-  // After serialization and before deserialization hooks with some basic sanity checks
-  if (options.afterSerialization && !options.beforeDeserialization) {
-    throw new Error("Serialization hook defined but deserialization hook undefined, cautiously refusing to start NestDB to prevent dataloss");
-  }
   if (!options.afterSerialization && options.beforeDeserialization) {
-    throw new Error("Serialization hook undefined but deserialization hook defined, cautiously refusing to start NestDB to prevent dataloss");
+    throw new Error('Serialization hook undefined but deserialization hook defined, cautiously refusing to start NestDB to prevent dataloss');
   }
-  this.afterSerialization = options.afterSerialization || function (s) { return s; };
-  this.beforeDeserialization = options.beforeDeserialization || function (s) { return s; };
+
+  this.afterSerialization = options.afterSerialization || function (s) {
+    return s;
+  };
+
+  this.beforeDeserialization = options.beforeDeserialization || function (s) {
+    return s;
+  };
+
   for (i = 1; i < 30; i += 1) {
     for (j = 0; j < 10; j += 1) {
-      randomString = customUtils.uid(i);
+      randomString = _customUtils.default.uid(i);
+
       if (this.beforeDeserialization(this.afterSerialization(randomString)) !== randomString) {
-        throw new Error("beforeDeserialization is not the reverse of afterSerialization, cautiously refusing to start NestDB to prevent dataloss");
+        throw new Error('beforeDeserialization is not the reverse of afterSerialization, cautiously refusing to start NestDB to prevent dataloss');
       }
     }
   }
-};
+}
 
-
+;
 /**
  * Check if a directory exists and create it on the fly if it is not the case
  * cb is optional, signature: err
  * @deprecated Use `require('mkdirp')` instead
  */
+
 Persistence.prototype.ensureDirectoryExists = function (dir, cb) {
   throw new Error('Deprecated! Use `require("mkdirp")` instead.');
 };
-
-
 /**
  * Persist cached database
  * This serves as a compaction function since the cache always contains only the number of documents in the collection
  * while the data file is append-only so it may grow larger
  * @param {Function} cb Optional callback, signature: err
  */
-Persistence.prototype.persistCachedDatabase = function (cb) {
-  var callback = cb || function () {}
-    , toPersist = ''
-    , self = this
-    ;
 
-  if (this.inMemoryOnly) { return callback(null); }
+
+Persistence.prototype.persistCachedDatabase = function (cb) {
+  var callback = cb || function () {};
+
+  var toPersist = '';
+  var self = this;
+
+  if (this.inMemoryOnly) {
+    return callback(null);
+  }
 
   this.db.getAllData().forEach(function (doc) {
-    toPersist += self.afterSerialization(model.serialize(doc)) + '\n';
+    toPersist += self.afterSerialization(_model.default.serialize(doc)) + '\n';
   });
   Object.keys(this.db.indexes).forEach(function (fieldName) {
-    if (fieldName != "_id") {   // The special _id index is managed by datastore.js, the others need to be persisted
-      toPersist += self.afterSerialization(model.serialize({ $$indexCreated: { fieldName: fieldName, unique: self.db.indexes[fieldName].unique, sparse: self.db.indexes[fieldName].sparse }})) + '\n';
+    if (fieldName != '_id') {
+      // The special _id index is managed by datastore.js, the others need to be persisted
+      toPersist += self.afterSerialization(_model.default.serialize({
+        $$indexCreated: {
+          fieldName: fieldName,
+          unique: self.db.indexes[fieldName].unique,
+          sparse: self.db.indexes[fieldName].sparse
+        }
+      })) + '\n';
     }
   });
-
   this.storage.write(this.filename, toPersist, function (err) {
-    if (err) { return callback(err); }
+    if (err) {
+      return callback(err);
+    }
+
     self.db.emit('compacted');
     return callback(null);
   });
 };
-
-
 /**
  * Queue a rewrite of the datafile
  * @param {Function} cb Optional callback, signature: err
  */
+
+
 Persistence.prototype.compactDatafile = function () {
-  this.db.executor.push({ this: this, fn: this.persistCachedDatabase, arguments: arguments });
+  this.db.executor.push({
+    this: this,
+    fn: this.persistCachedDatabase,
+    arguments: arguments
+  });
 };
-
-
 /**
  * Set automatic compaction every interval ms
  * @param {Number} interval in milliseconds, with an enforced minimum of 5 seconds
  */
+
+
 Persistence.prototype.setAutocompactionInterval = function (interval) {
-  var self = this
-    , minInterval = 5000
-    , realInterval = Math.max(interval || 0, minInterval)
-    ;
-
+  var self = this;
+  var minInterval = 5000;
+  var realInterval = Math.max(interval || 0, minInterval);
   this.stopAutocompaction();
-
   this.autocompactionIntervalId = setInterval(function () {
     self.compactDatafile();
   }, realInterval);
 };
-
-
 /**
  * Stop autocompaction (do nothing if autocompaction was not running)
  */
+
+
 Persistence.prototype.stopAutocompaction = function () {
-  if (this.autocompactionIntervalId) { clearInterval(this.autocompactionIntervalId); }
+  if (this.autocompactionIntervalId) {
+    clearInterval(this.autocompactionIntervalId);
+  }
 };
-
-
 /**
  * Persist new state for the given newDocs (can be insertion, update or removal)
  * Use an append-only format
  * @param {Array} newDocs Can be empty if no doc was updated/removed
  * @param {Function} cb Optional, signature: err
  */
-Persistence.prototype.persistNewState = function (newDocs, cb) {
-  var self = this
-    , toPersist = ''
-    , callback = cb || function () {}
-    ;
 
-  // In-memory only datastore
-  if (self.inMemoryOnly) { return callback(null); }
+
+Persistence.prototype.persistNewState = function (newDocs, cb) {
+  var self = this;
+  var toPersist = '';
+
+  var callback = cb || function () {}; // In-memory only datastore
+
+
+  if (self.inMemoryOnly) {
+    return callback(null);
+  }
 
   newDocs.forEach(function (doc) {
-    toPersist += self.afterSerialization(model.serialize(doc)) + '\n';
+    toPersist += self.afterSerialization(_model.default.serialize(doc)) + '\n';
   });
 
-  if (toPersist.length === 0) { return callback(null); }
+  if (toPersist.length === 0) {
+    return callback(null);
+  }
 
   this.storage.append(self.filename, toPersist, function (err) {
     return callback(err);
   });
 };
-
-
 /**
  * From a database's raw data, return the corresponding
  * machine understandable collection
  */
+
+
 Persistence.prototype.treatRawData = function (rawData) {
-  var data = rawData.split('\n')
-    , dataById = {}
-    , tdata = []
-    , i
-    , indexes = {}
-    , corruptItems = -1   // Last line of every data file is usually blank so not really corrupt
-    ;
+  var data = rawData.split('\n');
+  var dataById = {};
+  var tdata = [];
+  var i;
+  var indexes = {};
+  var corruptItems = -1; // Last line of every data file is usually blank so not really corrupt
 
   for (i = 0; i < data.length; i += 1) {
     var doc;
 
     try {
-      doc = model.deserialize(this.beforeDeserialization(data[i]));
+      doc = _model.default.deserialize(this.beforeDeserialization(data[i]));
+
       if (doc._id) {
         if (doc.$$deleted === true) {
           delete dataById[doc._id];
@@ -2661,27 +3160,27 @@ Persistence.prototype.treatRawData = function (rawData) {
         }
       } else if (doc.$$indexCreated && doc.$$indexCreated.fieldName != undefined) {
         indexes[doc.$$indexCreated.fieldName] = doc.$$indexCreated;
-      } else if (typeof doc.$$indexRemoved === "string") {
+      } else if (typeof doc.$$indexRemoved === 'string') {
         delete indexes[doc.$$indexRemoved];
       }
     } catch (e) {
       corruptItems += 1;
     }
-  }
+  } // A bit lenient on corruption
 
-  // A bit lenient on corruption
+
   if (data.length > 0 && corruptItems / data.length > this.corruptAlertThreshold) {
-    throw new Error("More than " + Math.floor(100 * this.corruptAlertThreshold) + "% of the data file is corrupt, the wrong beforeDeserialization hook may be used. Cautiously refusing to start NestDB to prevent dataloss");
+    throw new Error('More than ' + Math.floor(100 * this.corruptAlertThreshold) + '% of the data file is corrupt, the wrong beforeDeserialization hook may be used. Cautiously refusing to start NestDB to prevent dataloss');
   }
 
   Object.keys(dataById).forEach(function (k) {
     tdata.push(dataById[k]);
   });
-
-  return { data: tdata, indexes: indexes };
+  return {
+    data: tdata,
+    indexes: indexes
+  };
 };
-
-
 /**
  * Load the database
  * 1) Create all indexes
@@ -2692,79 +3191,80 @@ Persistence.prototype.treatRawData = function (rawData) {
  * This operation is very quick at startup for a big collection (60ms for ~10k docs)
  * @param {Function} cb Optional callback, signature: err
  */
+
+
 Persistence.prototype.loadDatabase = function (cb) {
-  var callback = cb || function () {}
-    , self = this
-    ;
+  var callback = cb || function () {};
 
-  self.db.resetIndexes();
+  var self = this;
+  self.db.resetIndexes(); // In-memory only datastore
 
-  // In-memory only datastore
-  if (self.inMemoryOnly) { return callback(null); }
+  if (self.inMemoryOnly) {
+    return callback(null);
+  }
 
-  async.waterfall([
-    function (cb) {
-      self.storage.init(self.filename, function (err) {
-        if (err) { return cb(err); }
+  _async.default.waterfall([function (cb) {
+    self.storage.init(self.filename, function (err) {
+      if (err) {
+        return cb(err);
+      }
 
-        self.storage.read(self.filename, function (err, rawData) {
-          if (err) { return cb(err); }
+      self.storage.read(self.filename, function (err, rawData) {
+        if (err) {
+          return cb(err);
+        }
 
-          try {
-            var treatedData = self.treatRawData(rawData);
-          } catch (e) {
-            return cb(e);
-          }
+        try {
+          var treatedData = self.treatRawData(rawData);
+        } catch (e) {
+          return cb(e);
+        } // Recreate all indexes in the datafile
 
-          // Recreate all indexes in the datafile
-          Object.keys(treatedData.indexes).forEach(function (key) {
-            self.db.indexes[key] = new Index(treatedData.indexes[key]);
-          });
 
-          // Fill cached database (i.e. all indexes) with data
-          try {
-            self.db.resetIndexes(treatedData.data);
-          } catch (e) {
-            self.db.resetIndexes();   // Rollback any index which didn't fail
-            return cb(e);
-          }
+        Object.keys(treatedData.indexes).forEach(function (key) {
+          self.db.indexes[key] = new _indexes.default(treatedData.indexes[key]);
+        }); // Fill cached database (i.e. all indexes) with data
 
-          self.db.persistence.persistCachedDatabase(cb);
-        });
+        try {
+          self.db.resetIndexes(treatedData.data);
+        } catch (e) {
+          self.db.resetIndexes(); // Rollback any index which didn't fail
+
+          return cb(e);
+        }
+
+        self.db.persistence.persistCachedDatabase(cb);
       });
+    });
+  }], function (err) {
+    if (err) {
+      return callback(err);
     }
-  ], function (err) {
-       if (err) { return callback(err); }
 
-       self.db.executor.processBuffer();
-       return callback(null);
-     });
+    self.db.executor.processBuffer();
+    return callback(null);
+  });
 };
-
-
 /**
  * Destroy the database
  * This means destroying the data file if it exists
  *
  * @param {Function} cb Optional callback, signature: err
  */
+
+
 Persistence.prototype.destroyDatabase = function (cb) {
-  var callback = cb || function () {}
-    , self = this
-    ;
+  var callback = cb || function () {};
 
-  self.db.resetIndexes();
+  var self = this;
+  self.db.resetIndexes(); // In-memory only datastore
 
-  // In-memory only datastore
-  if (self.inMemoryOnly) { return callback(null); }
+  if (self.inMemoryOnly) {
+    return callback(null);
+  }
 
   self.storage.remove(self.filename, callback);
 };
-
-
-
-// Interface
-module.exports = Persistence;
 
 },{"./customUtils":2,"./indexes":5,"./model":6,"./storage":8,"async":9}],8:[function(require,module,exports){
 /**
@@ -2775,69 +3275,62 @@ module.exports = Persistence;
  * This version is the browser version
  */
 
- // Userland modules
+// Userland modules
 var localforage = require('localforage')
 
-
 // Local variables
-  , storage = {}
-  ;
+
+var storage = {}
 
 // Configure localforage to display NestDB name for now. Would be a good idea to let user use his own app name
 localforage.config({
-  name: 'NestDB'
-, storeName: 'nestdbdata'
-});
-
+  name: 'NestDB',
+  storeName: 'nestdbdata'
+})
 
 // No need for a crash-safe function in the browser
 storage.write = function (filename, contents, callback) {
-  localforage.setItem(filename, contents, callback);
-};
-
+  localforage.setItem(filename, contents, callback)
+}
 
 storage.append = function (filename, toAppend, callback) {
   localforage.getItem(filename, function (err, contents) {
     if (err) {
-      return callback(err);
+      return callback(err)
     }
-    contents = contents || '';
-    contents += toAppend;
-    localforage.setItem(filename, contents, callback);
-  });
-};
-
+    contents = contents || ''
+    contents += toAppend
+    localforage.setItem(filename, contents, callback)
+  })
+}
 
 storage.read = function (filename, callback) {
   localforage.getItem(filename, function (err, contents) {
     if (err) {
-      return callback(err);
+      return callback(err)
     }
-    callback(null, contents || '');
-  });
-};
-
+    callback(null, contents || '')
+  })
+}
 
 storage.remove = function (filename, callback) {
-  localforage.removeItem(filename, callback);
-};
-
+  localforage.removeItem(filename, callback)
+}
 
 // Nothing to do because:
 //  - no data corruption is possible in the browser
 //  - no directory creation is possible in the browser
 //  - no need to initialize an empty "file" for the datastore in the browser
 storage.init = function (filename, callback) {
-  return callback(null);
-};
-
+  return callback(null)
+}
 
 // Interface
-module.exports.init = storage.init;
-module.exports.read = storage.read;
-module.exports.write = storage.write;
-module.exports.append = storage.append;
-module.exports.remove = storage.remove;
+module.exports.init = storage.init
+module.exports.read = storage.read
+module.exports.write = storage.write
+module.exports.append = storage.append
+module.exports.remove = storage.remove
 
 },{"localforage":14}],9:[function(require,module,exports){
 (function (process,global,setImmediate){
