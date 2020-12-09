@@ -167,6 +167,28 @@ describe('Datastore', function () {
     });
   });
 
+  it('Custom date Generator', function (done) {
+    var createdAt
+      , db = new Datastore({ timestampData:true, dateGenerator: function() { createdAt=new Date().toISOString(); return createdAt; } })
+      ;
+
+    db.insert({ foo: 'bar' }, function (err1, doc1) {
+      assert.isNull(err1);
+      doc1.createdAt.should.equal(createdAt);
+      doc1.createdAt.should.match(/^(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))$/);
+
+      // No delay is needed here since, if the ID already exists, it will just keep generating a new one until it differs
+      db.insert({ foo: 'baz' }, function (err2, doc2) {
+        assert.isNull(err2);
+        doc2.createdAt.should.equal(createdAt);
+        doc2.createdAt.should.match(/^(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))$/);
+        doc2.createdAt.should.not.equal(doc1.createdAt);
+        new Date(doc2.createdAt).getTime().should.be.greaterThan(new Date(doc1.createdAt).getTime());
+        done();
+      });
+    });
+  });
+  
   describe('Autoloading', function () {
 
     it('Can autoload a database and query it right away', function (done) {
