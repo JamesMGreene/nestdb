@@ -76,7 +76,7 @@ describe('Datastore', function () {
         done();
       });
 
-      db = new Datastore({ inMemoryOnly: true, autoload: true });
+      db = new Datastore({ inMemoryOnly: true, autoload: true,onload:function(err){if(err) console.error(err);} });
     });
 
     it('when creating a new persistent datastore', function (done) {
@@ -173,19 +173,22 @@ describe('Datastore', function () {
       ;
 
     db.insert({ foo: 'bar' }, function (err1, doc1) {
+      if(err1) console.error(err1)
       assert.isNull(err1);
       doc1.createdAt.should.equal(createdAt);
       doc1.createdAt.should.match(/^(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))$/);
 
-      // No delay is needed here since, if the ID already exists, it will just keep generating a new one until it differs
-      db.insert({ foo: 'baz' }, function (err2, doc2) {
-        assert.isNull(err2);
-        doc2.createdAt.should.equal(createdAt);
-        doc2.createdAt.should.match(/^(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))$/);
-        doc2.createdAt.should.not.equal(doc1.createdAt);
-        new Date(doc2.createdAt).getTime().should.be.greaterThan(new Date(doc1.createdAt).getTime());
-        done();
-      });
+      setTimeout(function(){
+        db.insert({ foo: 'baz' }, function (err2, doc2) {
+          if(err2) console.error(err1)
+          assert.isNull(err2);
+          doc2.createdAt.should.equal(createdAt);
+          doc2.createdAt.should.match(/^(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d\.\d+([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))|(\d{4}-[01]\d-[0-3]\dT[0-2]\d:[0-5]\d([+-][0-2]\d:[0-5]\d|Z))$/);
+          doc2.createdAt.should.not.equal(doc1.createdAt);
+          new Date(doc2.createdAt).getTime().should.be.greaterThan(new Date(doc1.createdAt).getTime());
+          done();
+        });
+      },1);
     });
   });
   
